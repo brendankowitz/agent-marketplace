@@ -16,6 +16,7 @@ manifests — the same approach as [superpowers](https://github.com/obra/superpo
 | `document` | `documentation-agent`, `persona-agent` (models your style from agent-journal sessions) + `update-documentation`, `agent-journal` skills | BSD-3-Clause |
 
 The five phase plugins follow a feature-first workflow: **discover → decide → build → review → document**.
+See [docs/workflow.md](docs/workflow.md) for the full workflow guide (preserved from the retired template repos).
 Skills both auto-apply by description and are slash-invokable (`/engineer-mode`, `/wa-security-review`, …)
 in Copilot CLI and Claude Code.
 
