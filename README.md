@@ -49,8 +49,12 @@ claude plugin install build@agent-marketplace   # etc.
   diverged and the Copilot versions carried the newer, delegation-aware prompts.
 - **Skills over commands.** Skills are the single format that both auto-applies and
   slash-invokes on both platforms, so the old `commands/` tree was dropped.
-- **Neutral agent frontmatter.** Agents carry only `name` + `description` so the same
-  file loads on both platforms (no `model:`/`tools:` platform dialect).
+- **Portable agent frontmatter.** Agents carry `name` + `description` everywhere (no
+  `tools:` platform dialect). The levelled coding agents additionally pin a model tier
+  with Claude Code aliases — `fast-coding-agent` → `haiku`, `coding-agent` → `sonnet`,
+  `complex-coding-agent` → `opus`. Claude Code honors these; Copilot CLI and Kimi Code
+  safely ignore the field (Copilot CLI routes delegated subagents to the session model
+  regardless — see [copilot-cli#2939](https://github.com/github/copilot-cli/issues/2939)).
 
 ## Licensing
 
