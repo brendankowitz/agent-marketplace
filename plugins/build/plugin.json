@@ -1,0 +1,11 @@
+{
+  "name": "build",
+  "description": "Levelled coding agents (fast-coding-agent, coding-agent, complex-coding-agent) with delegation, plus implement-task and engineer-mode skills.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Brendan Kowitz",
+    "url": "https://github.com/brendankowitz"
+  },
+  "repository": "https://github.com/brendankowitz/agent-marketplace",
+  "license": "BSD-3-Clause"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "discover",
+  "description": "Start a feature right: create feature areas and run structured investigations with explicit accept/reject outcomes before committing to an approach.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Brendan Kowitz",
+    "url": "https://github.com/brendankowitz"
+  },
+  "repository": "https://github.com/brendankowitz/agent-marketplace",
+  "license": "BSD-3-Clause"
+}

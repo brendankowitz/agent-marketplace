@@ -15,6 +15,7 @@ This port is not affiliated with, endorsed by, or sponsored by Anthropic.
 "Claude" is a trademark of Anthropic and "GitHub Copilot" is a trademark of GitHub;
 both are used here only to describe compatibility and provenance.
 
-plugins/copilot-code-template and plugins/claude-code-template are original
-works by Brendan Kowitz, licensed under the BSD 3-Clause License (see the
-LICENSE file in each plugin directory).
+plugins/discover, plugins/decide, plugins/build, plugins/review, and
+plugins/document are original works by Brendan Kowitz, licensed under the
+BSD 3-Clause License (see the LICENSE file in each plugin directory). They were
+unified from the copilot-cli-code-template and claude-code-template projects.
