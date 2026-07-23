@@ -1,0 +1,48 @@
+{
+  "name": "agent-marketplace",
+  "owner": {
+    "name": "Brendan Kowitz"
+  },
+  "metadata": {
+    "description": "Brendan Kowitz's marketplace of agents and skills for GitHub Copilot CLI and Claude Code.",
+    "version": "2.0.0"
+  },
+  "plugins": [
+    {
+      "name": "pr-review-toolkit",
+      "description": "Six specialized PR review agents (code quality, test coverage, silent failures, comment accuracy, type design, simplification) plus a /pr-review-toolkit command that orchestrates them all. Ported from Anthropic's Claude Code pr-review-toolkit (Apache-2.0).",
+      "version": "1.1.0",
+      "source": "./plugins/pr-review-toolkit"
+    },
+    {
+      "name": "discover",
+      "description": "Start a feature right: create feature areas and run structured investigations with explicit accept/reject outcomes before committing to an approach.",
+      "version": "1.0.0",
+      "source": "./plugins/discover"
+    },
+    {
+      "name": "decide",
+      "description": "Architecture Decision Records: analyze, draft, and accept ADRs. Includes the adr-analyzer agent plus create-adr and accept-adr skills.",
+      "version": "1.0.0",
+      "source": "./plugins/decide"
+    },
+    {
+      "name": "build",
+      "description": "Levelled coding agents (fast-coding-agent, coding-agent, complex-coding-agent) with delegation, plus implement-task and engineer-mode skills.",
+      "version": "1.0.0",
+      "source": "./plugins/build"
+    },
+    {
+      "name": "review",
+      "description": "Well-Architected reviews (full, security, reliability, performance) and technical PR review, backed by the well-architected-agent.",
+      "version": "1.0.0",
+      "source": "./plugins/review"
+    },
+    {
+      "name": "document",
+      "description": "Keep documentation and session knowledge current: documentation-agent, persona-agent (models your style from agent-journal sessions), update-documentation and agent-journal skills.",
+      "version": "1.0.0",
+      "source": "./plugins/document"
+    }
+  ]
+}

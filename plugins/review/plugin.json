@@ -1,0 +1,11 @@
+{
+  "name": "review",
+  "description": "Well-Architected reviews (full, security, reliability, performance) and technical PR review, backed by the well-architected-agent.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Brendan Kowitz",
+    "url": "https://github.com/brendankowitz"
+  },
+  "repository": "https://github.com/brendankowitz/agent-marketplace",
+  "license": "BSD-3-Clause"
+}

@@ -1,0 +1,21 @@
+agent-marketplace
+=================
+
+plugins/pr-review-toolkit contains a derivative work of the "pr-review-toolkit"
+plugin from anthropics/claude-plugins-official
+(https://github.com/anthropics/claude-plugins-official),
+Copyright Anthropic, licensed under the Apache License, Version 2.0.
+
+The six agent prompts and the review-pr command (renamed to pr-review-toolkit)
+were ported from Claude Code agent/command format to GitHub Copilot custom-agent
+and command format with modifications as noted in the header of each .agent.md
+file and in commands/pr-review-toolkit.md.
+
+This port is not affiliated with, endorsed by, or sponsored by Anthropic.
+"Claude" is a trademark of Anthropic and "GitHub Copilot" is a trademark of GitHub;
+both are used here only to describe compatibility and provenance.
+
+plugins/discover, plugins/decide, plugins/build, plugins/review, and
+plugins/document are original works by Brendan Kowitz, licensed under the
+BSD 3-Clause License (see the LICENSE file in each plugin directory). They were
+unified from the copilot-cli-code-template and claude-code-template projects.
