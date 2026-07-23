@@ -1,0 +1,30 @@
+{
+  "name": "agent-marketplace",
+  "owner": {
+    "name": "Brendan Kowitz"
+  },
+  "metadata": {
+    "description": "Brendan Kowitz's marketplace of agents, skills, and commands for GitHub Copilot CLI.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "pr-review-toolkit",
+      "description": "Six specialized PR review agents (code quality, test coverage, silent failures, comment accuracy, type design, simplification) plus a /pr-review-toolkit command that orchestrates them all. Ported from Anthropic's Claude Code pr-review-toolkit (Apache-2.0).",
+      "version": "1.1.0",
+      "source": "./plugins/pr-review-toolkit"
+    },
+    {
+      "name": "copilot-code-template",
+      "description": "AI-native development workflow for Copilot CLI: 7 agents and 14 skills for a feature-first lifecycle (investigate, ADR, implement, verify, document) plus Well-Architected reviews.",
+      "version": "1.0.0",
+      "source": "./plugins/copilot-code-template"
+    },
+    {
+      "name": "claude-code-template",
+      "description": "The same AI-native workflow in its original Claude Code form: 7 agents and 14 slash commands, packaged for Copilot CLI.",
+      "version": "1.0.0",
+      "source": "./plugins/claude-code-template"
+    }
+  ]
+}
