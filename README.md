@@ -55,6 +55,8 @@ claude plugin install build@agent-marketplace   # etc.
   `complex-coding-agent` → `opus`. Claude Code honors these; Copilot CLI and Kimi Code
   safely ignore the field (Copilot CLI routes delegated subagents to the session model
   regardless — see [copilot-cli#2939](https://github.com/github/copilot-cli/issues/2939)).
+  On Copilot CLI the workaround is to name the model **at dispatch time**, which the
+  `implement-task` skill's tier table does.
 
 ## Licensing
 
