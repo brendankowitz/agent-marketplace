@@ -14,14 +14,18 @@ manifests — the same approach as [superpowers](https://github.com/obra/superpo
 | `build` | Levelled coding agents (`fast-coding-agent` → `coding-agent` → `complex-coding-agent`) with delegation + `implement-task`, `engineer-mode` skills | BSD-3-Clause |
 | `review` | `well-architected-agent` + Well-Architected reviews (`wa-full-review`, `wa-security-review`, `wa-reliability-review`, `wa-performance-review`) + `technical-review` | BSD-3-Clause |
 | `document` | `documentation-agent`, `persona-agent` (models your style from agent-journal sessions) + `update-documentation`, `agent-journal` skills | BSD-3-Clause |
-| `experimental` | Staging area for in-development agents and skills. Currently `implement-task-next`. Unstable, changes without notice. Skills carry a `-next` suffix so they install alongside their stable counterparts. See [plugins/experimental/README.md](plugins/experimental/README.md). | BSD-3-Clause |
+| `experimental` | Staging area for in-development agents and skills. Unstable, changes without notice. Skills carry a `-next` suffix so they install alongside their stable counterparts. Current contents are listed in [plugins/experimental/README.md](plugins/experimental/README.md). | BSD-3-Clause |
 
 The five phase plugins follow a feature-first workflow: **discover → decide → build → review → document**.
+`pr-review-toolkit` and `experimental` sit outside that sequence.
 See [docs/workflow.md](docs/workflow.md) for the full workflow guide (preserved from the retired template repos).
 Skills both auto-apply by description and are slash-invokable (`/engineer-mode`, `/wa-security-review`, …)
 in Copilot CLI and Claude Code.
 
 ## Install
+
+Add `experimental@agent-marketplace` alongside any of the below if you want to try
+in-development skills next to the stable ones. Expect it to break.
 
 ### GitHub Copilot CLI
 
@@ -37,9 +41,6 @@ copilot plugin install build@agent-marketplace   # etc.
 claude plugin marketplace add brendankowitz/agent-marketplace
 claude plugin install build@agent-marketplace   # etc.
 ```
-
-Add `experimental@agent-marketplace` if you want to try in-development skills alongside
-the stable ones. Expect it to break.
 
 ## Design notes
 
@@ -60,10 +61,10 @@ the stable ones. Expect it to break.
   safely ignore the field (Copilot CLI routes delegated subagents to the session model
   regardless — see [copilot-cli#2939](https://github.com/github/copilot-cli/issues/2939)).
   On Copilot CLI the workaround is to name the model **at dispatch time**, which the
-  `implement-task` skill's tier table does.
+  experimental `implement-task-next` skill's tier table does.
 
 ## Licensing
 
 Each plugin carries its own license in its directory. `pr-review-toolkit` is a
 derivative of Anthropic's Apache-2.0 plugin — see `NOTICE` and the attribution
-headers in its files. The five phase plugins are BSD-3-Clause.
+headers in its files. The five phase plugins and `experimental` are BSD-3-Clause.

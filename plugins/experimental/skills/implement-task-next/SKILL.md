@@ -34,8 +34,13 @@ run owns a directory under `./agent-working/<task-slug>/` at the repo root —
 home to the ledger and any briefs, reports, or diff packages you hand to
 subagents.
 
+`<task-slug>` is derived, never invented: kebab-case the plan file's basename, or
+if there is no plan file, the first few words of the task as the user stated it
+(`add-retry-backoff`). Derive it the same way every time — a resumed run that
+picks a different slug will not find its own ledger, which defeats the point.
+
 Before writing anything, make the workspace self-ignoring — it excludes itself
-without touching any tracked file:
+without touching any tracked file. Run whichever matches your shell:
 
 ```bash
 mkdir -p ./agent-working/<task-slug> && printf '*\n' > ./agent-working/.gitignore
@@ -47,11 +52,15 @@ Set-Content ./agent-working/.gitignore '*'
 ```
 
 Create the ledger at `./agent-working/<task-slug>/progress.md` with its identity
-as the first line, so a ledger you find later can prove it is yours:
+as the first lines, so a ledger you find later can prove it is yours and can
+tell you which model column the run committed to:
 
 ```
 # ledger — task: <task description or plan file path>
+# models: anthropic (inferred)
 ```
+
+See [Model Selection](#model-selection) for what goes on the `models:` line.
 
 Then append one line per state transition, in this grammar:
 
@@ -81,7 +90,7 @@ lines in order and resume from its **last** line:
 |-----------|---------|---------------|
 | `complete` | done | do not re-dispatch |
 | `BLOCKED` | needs a human ruling | stop and report |
-| `fix round R/5` | mid-loop | resume at round R+1 |
+| `fix round R/5` | mid-loop | resume at round R+1; at `R = 5` the cap is spent — go straight to adjudication |
 | `started` | dispatched, outcome unknown | diff `base..HEAD`; empty → re-dispatch, non-empty → resume at review |
 | `minor (deferred)` / `parked` | annotation only, never terminal | keep reading backwards for the real state, and treat it as `started` if none follows |
 
@@ -101,19 +110,49 @@ record from then on.
 
 Use the least capable tier that can do the job. **Always name the model
 explicitly** — omitting it inherits the session model, usually the most
-expensive one. The model names differ per platform; pass the one your host
-understands, not both.
+expensive one.
 
-| Tier | Agent | Copilot CLI | Claude Code | Use for |
-|------|-------|-------------|-------------|---------|
-| Fast | Fast Coding Agent | `gpt-5.6-luna` | `haiku` | 1-2 files, complete spec, transcription, build-error fixes |
-| Standard | Coding Agent | `gpt-5.6-terra` | `sonnet` | multi-file integration, pattern matching, debugging |
-| Deep | Complex Coding Agent | `gpt-5.6-sol` | `opus` | architecture, design judgment, broad codebase reasoning |
+Tiers are the same three everywhere; only the models filling them change, and
+they change by *provider*, not by host:
 
-The agents' frontmatter pins the Claude Code alias, which Claude Code honors.
-Copilot CLI ignores that field and routes delegated subagents to the session
-model, so on Copilot CLI naming the model **at dispatch time** is the only thing
-that selects a tier.
+| Tier | Agent | Anthropic | GPT | Use for |
+|------|-------|-----------|-----|---------|
+| Fast | Fast Coding Agent | `haiku` @ high | `gpt-5.6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
+| Standard | Coding Agent | `sonnet` @ high | `gpt-5.6-terra` @ high | multi-file integration, pattern matching, debugging |
+| Deep | Complex Coding Agent | `opus` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
+
+**Effort runs inverse to tier on the GPT column, and that is deliberate** — a
+smaller model thinking longer beats a larger one thinking less at comparable
+cost, so the tier is bought partly in reasoning rather than entirely in model
+size. The Anthropic column is flat high because that is simply the default worth
+using, not a tuning result.
+
+Effort is a *dispatch-time* argument, so it applies only where the host exposes
+one. Copilot CLI does, for both columns — pass it alongside the model. Claude
+Code has no per-subagent effort field, so there is nothing to pass and the tier
+does all the work. Do not substitute prompt incantations for the missing knob.
+
+### Picking the column
+
+**Claude Code runs Anthropic models only**, so the column is decided for you and
+the agents' frontmatter already pins the alias, which Claude Code honors.
+
+**Copilot CLI can run either**, and it ignores that frontmatter — it routes
+delegated subagents to the session model, so naming the model **at dispatch
+time** is the only thing that selects a tier. Infer the column from the session
+model (`claude-*` → Anthropic, `gpt-*` → GPT), state which one you inferred, and
+give the user one chance to override before the first dispatch. Then record it
+in the ledger and never ask again. The line is `# models: <provider>
+(inferred|confirmed)` — one provider, one qualifier:
+
+```
+# ledger — task: <task description or plan file path>
+# models: gpt (confirmed)
+```
+
+A run that resumes after compaction reads the column off that line rather than
+re-asking. If the line is missing on resume, re-infer and append it — do not
+interrupt a run in progress to ask.
 
 **Turn count beats token price.** The cheapest tier routinely takes 2-3× the
 turns on multi-step work, costing more overall. Standard is the *floor* for
@@ -124,6 +163,15 @@ task text contains the code to write, or the change is a single-file mechanical 
 diff → Fast/Standard; subtle concurrency or security change → Deep. The final
 whole-branch review is always Deep.
 
+**Who reviews.** Prefer a dedicated reviewer if one is installed —
+`pr-review-toolkit:code-reviewer` for general quality, or
+`review:well-architected-agent` for architectural risk. Both live in other
+plugins, so neither is guaranteed present. If neither is available, dispatch a
+general-purpose subagent at the tier above and give it the review brief
+explicitly: the diff, the task's requirements, and an instruction to return a
+spec-compliance verdict and a quality verdict separately. Never let the
+implementer review its own work.
+
 ## Iteration Loop
 
 Run per sub-task. Record `BASE = git rev-parse HEAD` and write the task's
@@ -132,7 +180,21 @@ the ledger is the only place it survives.
 
 1. **Implement** — dispatch one implementer (never two in parallel on the same
    files). Give it: where the task fits, its requirements, interfaces from
-   earlier tasks it can't know, and your resolution of any ambiguity.
+   earlier tasks it can't know, and your resolution of any ambiguity. Require it
+   to end its report with exactly one status line — `DONE`,
+   `DONE_WITH_CONCERNS`, `NEEDS_CONTEXT`, or `BLOCKED`. The agents do not emit
+   these on their own; you get the contract only by asking for it in the
+   dispatch. If a report comes back without one, treat it as
+   `DONE_WITH_CONCERNS` and read it closely rather than guessing.
+
+   **Tell it to do the work itself and not sub-delegate.** The levelled coding
+   agents are independently instructed to fan out to other agents in parallel,
+   which is right when a user drives them directly and wrong inside this loop —
+   it puts code you did not dispatch into the review diff, breaks the
+   one-implementer-per-file rule a level down where you cannot see it, and
+   escapes the tier you chose. If a task genuinely needs splitting, that is your
+   call to make: end the dispatch and split it into sub-tasks with their own
+   ledger lines. Parallelism belongs to you, not to the implementer.
 2. **Build & Test** — the implementer runs the tests covering its change and
    reports the command and its output.
 3. **Handle the report:**
@@ -151,8 +213,9 @@ the ledger is the only place it survives.
    re-review of the fix diff.
    - Rounds 1-3: resume the same implementer with the findings verbatim
    - Rounds 4-5: fresh implementer, **one tier up**, told what was already tried.
-     Already at Deep? Keep the tier and switch to the other Deep model — a fresh
-     context on a different model is the variable you have left.
+     Already at Deep? Keep the tier and dispatch a fresh implementer with a clean
+     context and an explicit account of what has been tried and ruled out — a
+     fresh context is the variable you have left.
    - At the cap: adjudicate each open finding — park it with a written ruling,
      or STOP and report BLOCKED if it's load-bearing. Silent discards forbidden.
 6. **Record & next** — append the round and completion lines to the ledger in
@@ -164,10 +227,13 @@ Spawn independent sub-tasks in parallel when they touch disjoint files.
 ## Final Review
 
 After all sub-tasks: one whole-branch review on the **Deep** tier over
-`merge-base..HEAD`. Hand it the ledger path along with the diff and tell it to
-triage the `minor (deferred)` and `parked` lines — which must be fixed before
-merge, which stand. A roll-up nobody reads is a silent discard.
+`$(git merge-base <base-branch> HEAD)..HEAD`, where `<base-branch>` is the branch
+this work targets (usually `main`). Hand it the ledger path along with the diff
+and tell it to triage the `minor (deferred)` and `parked` lines — which must be
+fixed before merge, which stand. A roll-up nobody reads is a silent discard.
 
 If it returns findings, dispatch **one** fix agent with the complete list — not
 one fixer per finding — then one scoped re-review of that fix diff. Adjudicate
-any residuals as above, then delete `./agent-working/<task-slug>/`.
+any residuals as above, then delete `./agent-working/<task-slug>/`. If no other
+run is in flight, remove `./agent-working/` entirely — its `.gitignore` is
+invisible to `git status` and will otherwise accumulate unnoticed.
