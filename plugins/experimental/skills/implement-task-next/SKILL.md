@@ -186,6 +186,15 @@ the ledger is the only place it survives.
    these on their own; you get the contract only by asking for it in the
    dispatch. If a report comes back without one, treat it as
    `DONE_WITH_CONCERNS` and read it closely rather than guessing.
+
+   **Tell it to do the work itself and not sub-delegate.** The levelled coding
+   agents are independently instructed to fan out to other agents in parallel,
+   which is right when a user drives them directly and wrong inside this loop —
+   it puts code you did not dispatch into the review diff, breaks the
+   one-implementer-per-file rule a level down where you cannot see it, and
+   escapes the tier you chose. If a task genuinely needs splitting, that is your
+   call to make: end the dispatch and split it into sub-tasks with their own
+   ledger lines. Parallelism belongs to you, not to the implementer.
 2. **Build & Test** — the implementer runs the tests covering its change and
    reports the command and its output.
 3. **Handle the report:**
