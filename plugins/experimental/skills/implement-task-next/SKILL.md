@@ -52,11 +52,15 @@ Set-Content ./agent-working/.gitignore '*'
 ```
 
 Create the ledger at `./agent-working/<task-slug>/progress.md` with its identity
-as the first line, so a ledger you find later can prove it is yours:
+as the first lines, so a ledger you find later can prove it is yours and can
+tell you which model column the run committed to:
 
 ```
 # ledger — task: <task description or plan file path>
+# models: anthropic (inferred)
 ```
+
+See [Model Selection](#model-selection) for what goes on the `models:` line.
 
 Then append one line per state transition, in this grammar:
 
@@ -106,19 +110,49 @@ record from then on.
 
 Use the least capable tier that can do the job. **Always name the model
 explicitly** — omitting it inherits the session model, usually the most
-expensive one. The model names differ per platform; pass the one your host
-understands, not both.
+expensive one.
 
-| Tier | Agent | Copilot CLI | Claude Code | Use for |
-|------|-------|-------------|-------------|---------|
-| Fast | Fast Coding Agent | `gpt-5.6-luna` | `haiku` | 1-2 files, complete spec, transcription, build-error fixes |
-| Standard | Coding Agent | `gpt-5.6-terra` | `sonnet` | multi-file integration, pattern matching, debugging |
-| Deep | Complex Coding Agent | `gpt-5.6-sol` | `opus` | architecture, design judgment, broad codebase reasoning |
+Tiers are the same three everywhere; only the models filling them change, and
+they change by *provider*, not by host:
 
-The agents' frontmatter pins the Claude Code alias, which Claude Code honors.
-Copilot CLI ignores that field and routes delegated subagents to the session
-model, so on Copilot CLI naming the model **at dispatch time** is the only thing
-that selects a tier.
+| Tier | Agent | Anthropic | GPT | Use for |
+|------|-------|-----------|-----|---------|
+| Fast | Fast Coding Agent | `haiku` @ high | `gpt-5.6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
+| Standard | Coding Agent | `sonnet` @ high | `gpt-5.6-terra` @ high | multi-file integration, pattern matching, debugging |
+| Deep | Complex Coding Agent | `opus` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
+
+**Effort runs inverse to tier on the GPT column, and that is deliberate** — a
+smaller model thinking longer beats a larger one thinking less at comparable
+cost, so the tier is bought partly in reasoning rather than entirely in model
+size. The Anthropic column is flat high because that is simply the default worth
+using, not a tuning result.
+
+Effort is a *dispatch-time* argument, so it applies only where the host exposes
+one. Copilot CLI does, for both columns — pass it alongside the model. Claude
+Code has no per-subagent effort field, so there is nothing to pass and the tier
+does all the work. Do not substitute prompt incantations for the missing knob.
+
+### Picking the column
+
+**Claude Code runs Anthropic models only**, so the column is decided for you and
+the agents' frontmatter already pins the alias, which Claude Code honors.
+
+**Copilot CLI can run either**, and it ignores that frontmatter — it routes
+delegated subagents to the session model, so naming the model **at dispatch
+time** is the only thing that selects a tier. Infer the column from the session
+model (`claude-*` → Anthropic, `gpt-*` → GPT), state which one you inferred, and
+give the user one chance to override before the first dispatch. Then record it
+in the ledger and never ask again. The line is `# models: <provider>
+(inferred|confirmed)` — one provider, one qualifier:
+
+```
+# ledger — task: <task description or plan file path>
+# models: gpt (confirmed)
+```
+
+A run that resumes after compaction reads the column off that line rather than
+re-asking. If the line is missing on resume, re-infer and append it — do not
+interrupt a run in progress to ask.
 
 **Turn count beats token price.** The cheapest tier routinely takes 2-3× the
 turns on multi-step work, costing more overall. Standard is the *floor* for
