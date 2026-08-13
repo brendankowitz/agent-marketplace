@@ -37,6 +37,12 @@
       "description": "Keep documentation and session knowledge current: documentation-agent, persona-agent (models your style from agent-journal sessions), update-documentation and agent-journal skills.",
       "version": "1.0.0",
       "source": "./plugins/document"
+    },
+    {
+      "name": "experimental",
+      "description": "Staging area for in-development agents and skills. Contents are unstable and change without notice; skills carry a -next suffix so they can run alongside their stable counterparts.",
+      "version": "0.1.0",
+      "source": "./plugins/experimental"
     }
   ]
 }
