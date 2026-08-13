@@ -29,7 +29,7 @@
     {
       "name": "build",
       "description": "Levelled coding agents (fast-coding-agent, coding-agent, complex-coding-agent) with delegation, plus implement-task and engineer-mode skills.",
-      "version": "1.0.1",
+      "version": "1.0.0",
       "source": "./plugins/build"
     },
     {

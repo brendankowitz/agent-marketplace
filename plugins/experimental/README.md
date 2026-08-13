@@ -10,6 +10,12 @@ copilot plugin install experimental@agent-marketplace
 claude plugin install experimental@agent-marketplace
 ```
 
+## Currently in flight
+
+| Skill | Successor to | What is being tried |
+|---|---|---|
+| `implement-task-next` | `build:implement-task` | A compaction-proof ledger under `./agent-working/`, explicit model tiers, a bounded fix loop with tier escalation, and a status contract for implementers. |
+
 ## Conventions
 
 **Skills carry a `-next` suffix** in their frontmatter `name` and directory name
