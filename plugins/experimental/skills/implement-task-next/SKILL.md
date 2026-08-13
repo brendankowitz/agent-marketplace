@@ -34,8 +34,13 @@ run owns a directory under `./agent-working/<task-slug>/` at the repo root —
 home to the ledger and any briefs, reports, or diff packages you hand to
 subagents.
 
+`<task-slug>` is derived, never invented: kebab-case the plan file's basename, or
+if there is no plan file, the first few words of the task as the user stated it
+(`add-retry-backoff`). Derive it the same way every time — a resumed run that
+picks a different slug will not find its own ledger, which defeats the point.
+
 Before writing anything, make the workspace self-ignoring — it excludes itself
-without touching any tracked file:
+without touching any tracked file. Run whichever matches your shell:
 
 ```bash
 mkdir -p ./agent-working/<task-slug> && printf '*\n' > ./agent-working/.gitignore
@@ -81,7 +86,7 @@ lines in order and resume from its **last** line:
 |-----------|---------|---------------|
 | `complete` | done | do not re-dispatch |
 | `BLOCKED` | needs a human ruling | stop and report |
-| `fix round R/5` | mid-loop | resume at round R+1 |
+| `fix round R/5` | mid-loop | resume at round R+1; at `R = 5` the cap is spent — go straight to adjudication |
 | `started` | dispatched, outcome unknown | diff `base..HEAD`; empty → re-dispatch, non-empty → resume at review |
 | `minor (deferred)` / `parked` | annotation only, never terminal | keep reading backwards for the real state, and treat it as `started` if none follows |
 
@@ -124,6 +129,15 @@ task text contains the code to write, or the change is a single-file mechanical 
 diff → Fast/Standard; subtle concurrency or security change → Deep. The final
 whole-branch review is always Deep.
 
+**Who reviews.** Prefer a dedicated reviewer if one is installed —
+`pr-review-toolkit:code-reviewer` for general quality, or
+`review:well-architected-agent` for architectural risk. Both live in other
+plugins, so neither is guaranteed present. If neither is available, dispatch a
+general-purpose subagent at the tier above and give it the review brief
+explicitly: the diff, the task's requirements, and an instruction to return a
+spec-compliance verdict and a quality verdict separately. Never let the
+implementer review its own work.
+
 ## Iteration Loop
 
 Run per sub-task. Record `BASE = git rev-parse HEAD` and write the task's
@@ -132,7 +146,12 @@ the ledger is the only place it survives.
 
 1. **Implement** — dispatch one implementer (never two in parallel on the same
    files). Give it: where the task fits, its requirements, interfaces from
-   earlier tasks it can't know, and your resolution of any ambiguity.
+   earlier tasks it can't know, and your resolution of any ambiguity. Require it
+   to end its report with exactly one status line — `DONE`,
+   `DONE_WITH_CONCERNS`, `NEEDS_CONTEXT`, or `BLOCKED`. The agents do not emit
+   these on their own; you get the contract only by asking for it in the
+   dispatch. If a report comes back without one, treat it as
+   `DONE_WITH_CONCERNS` and read it closely rather than guessing.
 2. **Build & Test** — the implementer runs the tests covering its change and
    reports the command and its output.
 3. **Handle the report:**
@@ -151,8 +170,9 @@ the ledger is the only place it survives.
    re-review of the fix diff.
    - Rounds 1-3: resume the same implementer with the findings verbatim
    - Rounds 4-5: fresh implementer, **one tier up**, told what was already tried.
-     Already at Deep? Keep the tier and switch to the other Deep model — a fresh
-     context on a different model is the variable you have left.
+     Already at Deep? Keep the tier and dispatch a fresh implementer with a clean
+     context and an explicit account of what has been tried and ruled out — a
+     fresh context is the variable you have left.
    - At the cap: adjudicate each open finding — park it with a written ruling,
      or STOP and report BLOCKED if it's load-bearing. Silent discards forbidden.
 6. **Record & next** — append the round and completion lines to the ledger in
@@ -164,10 +184,13 @@ Spawn independent sub-tasks in parallel when they touch disjoint files.
 ## Final Review
 
 After all sub-tasks: one whole-branch review on the **Deep** tier over
-`merge-base..HEAD`. Hand it the ledger path along with the diff and tell it to
-triage the `minor (deferred)` and `parked` lines — which must be fixed before
-merge, which stand. A roll-up nobody reads is a silent discard.
+`$(git merge-base <base-branch> HEAD)..HEAD`, where `<base-branch>` is the branch
+this work targets (usually `main`). Hand it the ledger path along with the diff
+and tell it to triage the `minor (deferred)` and `parked` lines — which must be
+fixed before merge, which stand. A roll-up nobody reads is a silent discard.
 
 If it returns findings, dispatch **one** fix agent with the complete list — not
 one fixer per finding — then one scoped re-review of that fix diff. Adjudicate
-any residuals as above, then delete `./agent-working/<task-slug>/`.
+any residuals as above, then delete `./agent-working/<task-slug>/`. If no other
+run is in flight, remove `./agent-working/` entirely — its `.gitignore` is
+invisible to `git status` and will otherwise accumulate unnoticed.
