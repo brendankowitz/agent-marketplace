@@ -1,0 +1,11 @@
+{
+  "name": "experimental",
+  "description": "Staging area for in-development agents and skills. Contents are unstable and change without notice; skills carry a -next suffix so they can run alongside their stable counterparts.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Brendan Kowitz",
+    "url": "https://github.com/brendankowitz"
+  },
+  "repository": "https://github.com/brendankowitz/agent-marketplace",
+  "license": "BSD-3-Clause"
+}

@@ -14,6 +14,7 @@ manifests — the same approach as [superpowers](https://github.com/obra/superpo
 | `build` | Levelled coding agents (`fast-coding-agent` → `coding-agent` → `complex-coding-agent`) with delegation + `implement-task`, `engineer-mode` skills | BSD-3-Clause |
 | `review` | `well-architected-agent` + Well-Architected reviews (`wa-full-review`, `wa-security-review`, `wa-reliability-review`, `wa-performance-review`) + `technical-review` | BSD-3-Clause |
 | `document` | `documentation-agent`, `persona-agent` (models your style from agent-journal sessions) + `update-documentation`, `agent-journal` skills | BSD-3-Clause |
+| `experimental` | Staging area for in-development agents and skills. Unstable, changes without notice. Skills carry a `-next` suffix so they install alongside their stable counterparts. See [plugins/experimental/README.md](plugins/experimental/README.md). | BSD-3-Clause |
 
 The five phase plugins follow a feature-first workflow: **discover → decide → build → review → document**.
 See [docs/workflow.md](docs/workflow.md) for the full workflow guide (preserved from the retired template repos).
@@ -36,6 +37,9 @@ copilot plugin install build@agent-marketplace   # etc.
 claude plugin marketplace add brendankowitz/agent-marketplace
 claude plugin install build@agent-marketplace   # etc.
 ```
+
+Add `experimental@agent-marketplace` if you want to try in-development skills alongside
+the stable ones. Expect it to break.
 
 ## Design notes
 
