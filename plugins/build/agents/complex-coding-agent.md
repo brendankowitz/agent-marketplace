@@ -23,7 +23,7 @@ Invoke the `engineer-mode` skill at the start of every task.
 - Implement proper async patterns without blocking
 - Comprehensive testing
 - One major symbol per file
-- Respect project instructions in AGENTS.md and .github/copilot-instructions.md
+- Respect project standards documented in AGENTS.md
 - **Delegate medium complexity sub-tasks to Coding Agent**
 - **Delegate simple sub-tasks to Fast Coding Agent for efficiency**
 
