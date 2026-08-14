@@ -42,6 +42,10 @@ claude plugin marketplace add brendankowitz/agent-marketplace
 claude plugin install build@agent-marketplace   # etc.
 ```
 
+`pr-review-toolkit` is intentionally **not** offered here — Claude Code already has the
+official [upstream plugin](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/pr-review-toolkit)
+that this one was ported from. Install that instead.
+
 ### Kimi Code
 
 ```
@@ -62,6 +66,12 @@ cloned repo's `.kimi-plugin/marketplace.json` instead of the URL.
   and [claude-code-template](https://github.com/brendankowitz/claude-code-template)
   (both retired); the Copilot variants were kept as canonical because the two had
   diverged and the Copilot versions carried the newer, delegation-aware prompts.
+- **`pr-review-toolkit` skips Claude Code on purpose.** It is the one plugin with no
+  `.claude-plugin/plugin.json` and no entry in `.claude-plugin/marketplace.json`, even
+  though it ships for Copilot CLI and Kimi Code. That asymmetry is deliberate: Claude Code
+  already ships the official upstream plugin this one was ported from, so publishing the
+  port there would only duplicate identically named agents. Neither Copilot CLI nor Kimi
+  Code has an equivalent, which is why they get it. Don't "fix" the missing Claude manifests.
 - **Skills over commands.** Skills are the single format that both auto-applies and
   slash-invokes on both platforms, so the old `commands/` tree was dropped.
 - **Portable agent frontmatter.** Agents carry `name` + `description` everywhere (no
