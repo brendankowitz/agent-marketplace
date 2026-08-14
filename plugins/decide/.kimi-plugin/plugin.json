@@ -1,0 +1,16 @@
+{
+  "name": "decide",
+  "description": "Architecture Decision Records: analyze, draft, and accept ADRs. Includes the adr-analyzer agent plus create-adr and accept-adr skills.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Brendan Kowitz",
+    "url": "https://github.com/brendankowitz"
+  },
+  "homepage": "https://github.com/brendankowitz/agent-marketplace",
+  "license": "BSD-3-Clause",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "decide",
+    "shortDescription": "Analyze, draft, and accept Architecture Decision Records"
+  }
+}

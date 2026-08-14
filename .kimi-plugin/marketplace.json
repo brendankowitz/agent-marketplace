@@ -1,0 +1,35 @@
+{
+  "version": "2",
+  "plugins": [
+    {
+      "id": "pr-review-toolkit",
+      "displayName": "pr-review-toolkit",
+      "source": "./plugins/pr-review-toolkit"
+    },
+    {
+      "id": "discover",
+      "displayName": "discover",
+      "source": "./plugins/discover"
+    },
+    {
+      "id": "decide",
+      "displayName": "decide",
+      "source": "./plugins/decide"
+    },
+    {
+      "id": "build",
+      "displayName": "build",
+      "source": "./plugins/build"
+    },
+    {
+      "id": "review",
+      "displayName": "review",
+      "source": "./plugins/review"
+    },
+    {
+      "id": "document",
+      "displayName": "document",
+      "source": "./plugins/document"
+    }
+  ]
+}
