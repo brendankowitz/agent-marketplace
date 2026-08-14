@@ -148,16 +148,6 @@ Do not touch these, even when they look repetitive:
 - Checks that a test explicitly asserts on — removing them breaks the suite and, more importantly, removes documented behavior. If the check is genuinely redundant, say so and note that the test encodes the contract.
 - Anything protecting against a race or reentrancy, where a value can become null between statements.
 
-### Language-specific guidance
-
-Apply whatever the project actually uses; infer it from the code and from AGENTS.md / `.github/copilot-instructions.md`.
-
-- **C# / .NET**: when nullable reference types are enabled, a `!= null` guard on a non-nullable parameter is redundant — prefer fixing the annotation over adding a check. Where a boundary guard is warranted, prefer the concise built-ins (`ArgumentNullException.ThrowIfNull`, `ArgumentException.ThrowIfNullOrWhiteSpace`, `ObjectDisposedException.ThrowIf`) over hand-rolled `if (x == null) throw new ...` blocks. Collapse `x is Foo f && f != null` to `x is Foo f`. Do not add guards to private methods, and do not re-validate a constructor-injected dependency at every call site when the constructor already validated it once.
-- **TypeScript / JavaScript**: under `strictNullChecks`, drop `if (!x)` guards on non-optional parameters. Beware `!x` where `0`, `""`, or `false` are legitimate values — prefer `x == null` / `x === undefined`. Remove `?.` chains on values the types prove are defined, and avoid `??` fallbacks that mask missing required data.
-- **Java / Kotlin**: remove `Objects.requireNonNull` on private methods and on Kotlin non-nullable types; keep it at public API edges and at Java/Kotlin interop boundaries. Avoid `Optional` wrapping of values that are never absent.
-- **Python**: prefer explicit type hints and letting `AttributeError`/`TypeError` surface over `if x is None: return None` chains that propagate `None` through the call graph.
-- **Go / Rust**: in Go, keep `err != nil` handling but remove nil checks on values that cannot be nil (for example, a struct returned by value); in Rust, prefer `?` and pattern matching over defensive `unwrap_or_default()` that fabricates data.
-
 ### How to report
 
 For each check you remove, state the value's origin and why the guarantee already holds — for example, "removed null guard on `resourceWrapper`: parameter is non-nullable and the only caller constructs it two lines earlier." When you keep an over-defensive check because you are not certain, say what evidence would let a future pass remove it. Prefer removals you can justify from code you have actually read; if you cannot trace every caller, keep the check and flag it rather than guessing.
