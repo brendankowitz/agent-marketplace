@@ -158,6 +158,7 @@ Run a comprehensive pull request review by delegating to multiple specialized ag
 **code-simplifier**:
 - Simplifies complex code
 - Improves clarity and readability
+- Removes redundant null checks, argument guards, and type tests
 - Applies project standards
 - Preserves functionality
 
