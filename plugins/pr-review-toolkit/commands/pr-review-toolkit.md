@@ -32,7 +32,7 @@ Run a comprehensive pull request review by delegating to multiple specialized ag
    - **errors** - Check error handling for silent failures
    - **types** - Analyze type design and invariants (if new types added)
    - **code** - General code review for project guidelines
-   - **simplify** - Simplify code for clarity and maintainability
+   - **simplify** - Simplify code for clarity and maintainability, and right-size over-defensive null/type checks
    - **all** - Run all applicable reviews (default)
 
 3. **Identify Changed Files**
@@ -49,6 +49,10 @@ Run a comprehensive pull request review by delegating to multiple specialized ag
    - **If error handling changed**: silent-failure-hunter
    - **If types added/modified**: type-design-analyzer
    - **After passing review**: code-simplifier (polish and refine)
+
+   Note: code-simplifier is the only agent that edits; the rest are read-only. On error-handling
+   and type-design constructs it defers to silent-failure-hunter and type-design-analyzer, which
+   run first — it should not re-litigate or undo their findings.
 
 5. **Launch Review Agents**
 

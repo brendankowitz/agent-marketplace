@@ -66,15 +66,17 @@ cloned repo's `.kimi-plugin/marketplace.json` instead of the URL.
   and [claude-code-template](https://github.com/brendankowitz/claude-code-template)
   (both retired); the Copilot variants were kept as canonical because the two had
   diverged and the Copilot versions carried the newer, delegation-aware prompts.
-- **`pr-review-toolkit` skips Claude Code on purpose.** It is the one plugin with no
-  `.claude-plugin/plugin.json` and no entry in `.claude-plugin/marketplace.json`, even
-  though it ships for Copilot CLI and Kimi Code. That asymmetry is deliberate: Claude Code
-  already ships the official upstream plugin this one was ported from, so publishing the
-  port there would only duplicate identically named agents. Neither Copilot CLI nor Kimi
-  Code has an equivalent, which is why they get it. Don't "fix" the missing Claude manifests.
+- **`pr-review-toolkit` skips Claude Code on purpose.** It ships for Copilot CLI and Kimi
+  Code but has no `.claude-plugin/plugin.json` and no entry in `.claude-plugin/marketplace.json`.
+  That asymmetry is deliberate: Claude Code already ships the official upstream plugin this
+  one was ported from, so publishing the port there would only duplicate identically named
+  agents. Don't "fix" the missing Claude manifests. Being a port, it is also the exception
+  to the two bullets below: it keeps its upstream `commands/` tree and its `tools:`
+  frontmatter. See [its README](plugins/pr-review-toolkit/README.md) for the details.
 - **Skills over commands.** Skills are the single format that both auto-applies and
-  slash-invokes on both platforms, so the old `commands/` tree was dropped.
-- **Portable agent frontmatter.** Agents carry `name` + `description` everywhere (no
+  slash-invokes on both platforms, so the old `commands/` tree was dropped from the phase
+  plugins.
+- **Portable agent frontmatter.** Phase-plugin agents carry `name` + `description` only (no
   `tools:` platform dialect). The levelled coding agents additionally pin a model tier
   with Claude Code aliases — `fast-coding-agent` → `haiku`, `coding-agent` → `sonnet`,
   `complex-coding-agent` → `opus`. Claude Code honors these; Copilot CLI and Kimi Code

@@ -20,14 +20,17 @@ README for install and usage instructions.
 
 This plugin ships **no `.claude-plugin/plugin.json`** and is **not listed in the root
 `.claude-plugin/marketplace.json`**, so it is deliberately not installable from Claude Code.
-It does ship for Copilot CLI and Kimi Code, which have no equivalent.
+It does ship for Copilot CLI and Kimi Code.
 
 That gap is intentional, not an oversight: Claude Code users already have the official
 [`pr-review-toolkit`](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/pr-review-toolkit)
-in Anthropic's own marketplace, and installing this port alongside it would just create a
-duplicate set of agents with the same names.
+in Anthropic's own marketplace, and installing this port alongside it would create a second
+set of agents with the same names.
 
-This port carries Copilot-specific changes (`.agent.md` format, `tools:` allowlist,
-`AGENTS.md` / `.github/copilot-instructions.md` references) plus local additions such as
-the code-simplifier's null/type check analysis. **Do not add Claude Code manifests for
-this plugin** — use the upstream original there instead.
+Being a port, this plugin is also the repo's exception to two conventions the phase plugins
+follow: it keeps its upstream `commands/` tree, and its agents carry a `tools:` allowlist.
+It additionally uses `AGENTS.md` / `.github/copilot-instructions.md` conventions in place of
+upstream's `CLAUDE.md`, and carries local additions such as the code-simplifier's null and
+type check analysis.
+
+**Do not add Claude Code manifests for this plugin** — use the upstream original there instead.
