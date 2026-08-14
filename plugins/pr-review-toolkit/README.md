@@ -30,7 +30,7 @@ set of agents with the same names.
 Being a port, this plugin is also the repo's exception to two conventions the phase plugins
 follow: it keeps its upstream `commands/` tree, and its agents carry a `tools:` allowlist.
 It additionally uses `AGENTS.md` / `.github/copilot-instructions.md` conventions in place of
-upstream's `CLAUDE.md`, and carries local additions such as the code-simplifier's null and
-type check analysis.
+upstream's `CLAUDE.md`, and carries local additions such as the code-simplifier's
+defensive-code guidance.
 
 **Do not add Claude Code manifests for this plugin** — use the upstream original there instead.

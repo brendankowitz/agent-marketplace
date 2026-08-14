@@ -86,7 +86,7 @@ You will analyze recently modified code and apply refinements that:
    - IMPORTANT: Avoid nested ternary operators - prefer switch statements or if/else chains for multiple conditions
    - Choose clarity over brevity - explicit code is often better than overly compact code
 
-4. **Right-Size Defensive Code**: Remove guards that duplicate guarantees already provided elsewhere, and *report* rather than apply any fix that changes behaviour or a signature. See "Defensive Code" below. This is the one sanctioned exception to rule 1, and a narrow one: it may change an unreachable failure mode, but never success-path behaviour and never a public signature.
+4. **Right-Size Defensive Code**: Remove guards that duplicate guarantees already provided elsewhere, and *report* rather than apply any fix that changes behavior or a signature. See "Defensive Code" below. This is the one sanctioned exception to rule 1, and a narrow one: it may change an unreachable failure mode, but never success-path behavior and never a public signature.
 
 5. **Maintain Balance**: Avoid over-simplification that could:
 
@@ -117,7 +117,7 @@ You edit rather than advise, so apply that principle conservatively:
 
 - **When in doubt, keep.** A redundant check costs a line; a wrongly removed one costs a bug. If you cannot trace every caller, keep the check and say what evidence would let a later pass remove it.
 - **Keep checks carrying information you cannot re-derive from the diff** — one a test asserts on, one added in response to an observed failure, or one a comment or annotation ties to a compliance or security requirement.
-- **Report, don't apply, anything that changes behaviour or a signature** — replacing a fabricated fallback with a failure, or narrowing a nullable parameter. Recommend these and let the author decide.
+- **Report, don't apply, anything that changes behavior or a signature** — replacing a fabricated fallback with a failure, or narrowing a nullable parameter. Recommend these and let the author decide.
 - **Read the guard before deleting it.** A guard testing emptiness alone is redundant before iteration; one that also tests for null is doing real work. "Already dereferenced above" holds for a local in straight-line code, not for a field another thread can change.
 - Error handling and type design belong to the silent-failure-hunter and type-design-analyzer agents; don't duplicate their findings.
 
