@@ -1,0 +1,16 @@
+{
+  "name": "document",
+  "description": "Keep documentation and session knowledge current: documentation-agent, persona-agent (models your style from agent-journal sessions), update-documentation and agent-journal skills.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Brendan Kowitz",
+    "url": "https://github.com/brendankowitz"
+  },
+  "homepage": "https://github.com/brendankowitz/agent-marketplace",
+  "license": "BSD-3-Clause",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "document",
+    "shortDescription": "Keep documentation and session knowledge current"
+  }
+}
