@@ -48,7 +48,8 @@ that this one was ported from. Install that instead.
 
 ### Kimi Code
 
-Install everything as a single plugin (Kimi downloads GitHub's repo zip — no release needed):
+Install the six stable plugins as a single plugin — Kimi fetches the repo
+directly, no release needed (`experimental` is not available on Kimi Code):
 
 ```
 /plugins install https://github.com/brendankowitz/agent-marketplace
@@ -61,7 +62,7 @@ local marketplace catalog:
 /plugins marketplace /path/to/agent-marketplace/.kimi-plugin/marketplace.json
 ```
 
-Run `/reload` (or `/new`) afterwards to activate.
+After either install path, run `/reload` (or `/new`) to activate.
 
 ## Design notes
 
@@ -69,9 +70,11 @@ Run `/reload` (or `/new`) afterwards to activate.
   manifests (`plugin.json` for Copilot CLI, `.claude-plugin/plugin.json` for Claude Code,
   `.kimi-plugin/plugin.json` for Kimi Code, marketplace manifests in `.github/plugin/`,
   `.claude-plugin/`, and `.kimi-plugin/`) all point at the
-  same files. Kimi Code additionally gets a root `kimi.plugin.json` that aggregates every
-  plugin's skills/agents/commands, because Kimi GitHub sources address whole repos (no
-  subdirectory form), so `/plugins install <repo-url>` installs everything at once. The
+  same files. Kimi Code additionally gets a root `kimi.plugin.json` that aggregates the
+  skills/agents/commands of the six plugins listed in `.kimi-plugin/marketplace.json`
+  (everything except `experimental`), because Kimi GitHub sources address whole repos (no
+  subdirectory form), so `/plugins install <repo-url>` installs them all at once. That
+  list is hard-coded — new plugins must be added to both files. The
   phase plugins were unified from
   [copilot-cli-code-template](https://github.com/brendankowitz/copilot-cli-code-template)
   and [claude-code-template](https://github.com/brendankowitz/claude-code-template)

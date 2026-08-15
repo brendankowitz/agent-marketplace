@@ -7,7 +7,7 @@
     "url": "https://github.com/brendankowitz"
   },
   "homepage": "https://github.com/brendankowitz/agent-marketplace",
-  "license": "BSD-3-Clause",
+  "license": "BSD-3-Clause AND Apache-2.0",
   "skills": [
     "./plugins/discover/skills/",
     "./plugins/decide/skills/",
