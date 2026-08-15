@@ -53,13 +53,12 @@ These are defaults, not absolutes.
 - Prefer command-query separation unless the operation's semantics make a returned result meaningful.
 - Prefer one major symbol per file when it matches the language and codebase.
 - Test observable behaviour; exposing internals for tests is a design warning.
+- Choose language features for expression, not recency.
+- Keep async end to end; block only at required synchronous boundaries and explain why.
+- Measure before optimizing; name the resource or latency cost.
 - Add configuration, hooks, or parameters only for present callers.
 - If one behaviour requires several new types, reconsider the design.
 
 ## Common Mistakes
 
-| Mistake | Better decision |
-|---|---|
-| Interface, base class, and factory for one implementation | Start concrete; extract when a real boundary or variation appears |
-| Repeated guards and empty fallbacks | Validate once at the owning boundary |
-| Silently following a conflicting requirement | Record the four-part decision note without reopening the requirement |
+Watch for interface/base/factory stacks around one implementation, repeated boundary guards, and conflicting requirements followed without a decision note.

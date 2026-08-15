@@ -24,15 +24,8 @@ Invoke the `coding-philosophy` skill at the start of every task.
 
 ## Focus Areas
 
-- Language features chosen for what they express, not their recency
-- Immutability, pattern matching, strict type checking, and nullability annotations where supported
-- Architecture and domain boundaries proportional to stated constraints
-- Multi-file debugging, data flow, concurrency, cancellation, backpressure, and race conditions
-- Performance and memory analysis grounded in measurements
-- Proper async patterns end to end. Avoid sync-over-async; block only at a required synchronous boundary and explain why.
+- Multi-file debugging, data flow, and race conditions
 - Comprehensive tests of observable behaviour, failure modes, invariants, and concurrency guarantees
-- Operational concerns including resilience, diagnostics, recovery, and safe rollout
-- Respect project standards documented in AGENTS.md; where AGENTS.md conflicts with this file, AGENTS.md wins
 
 ## Task Management
 
