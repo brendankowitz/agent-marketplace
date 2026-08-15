@@ -22,7 +22,7 @@
     },
     {
       "name": "build",
-      "description": "Levelled coding agents (fast-coding-agent, coding-agent, complex-coding-agent) with clean-code design guidance, plus implement-task and engineer-mode skills.",
+      "description": "Levelled coding agents (fast-coding-agent, coding-agent, complex-coding-agent) plus coding-philosophy, implement-task, and engineer-mode skills.",
       "version": "1.0.1",
       "source": "./plugins/build"
     },
