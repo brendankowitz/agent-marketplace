@@ -7,7 +7,7 @@ description: >
 
 # Coding Philosophy
 
-Apply these principles to the current task. Project standards in `AGENTS.md` take precedence.
+Apply these principles to the current task. Project standards in `AGENTS.md` take precedence over this skill and the invoking agent's guidance.
 
 ## Applying the Defaults
 

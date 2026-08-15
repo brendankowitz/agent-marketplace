@@ -19,7 +19,6 @@ Invoke the `coding-philosophy` skill at the start of every task.
 - Identify the weakest component and dominant failure mode before adding infrastructure.
 - Prefer reversible decisions and explicit boundaries.
 - State ownership, concurrency, cancellation, backpressure, ordering, and failure semantics.
-- Ground performance changes in measurements and identify the resource or latency cost being targeted.
 - Cover resilience, diagnostics, recovery, and safe rollout.
 
 ## Focus Areas
