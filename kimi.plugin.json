@@ -1,0 +1,32 @@
+{
+  "name": "agent-marketplace",
+  "version": "2.0.0",
+  "description": "Brendan Kowitz's marketplace of agents and skills: PR review toolkit, feature discovery, ADRs, levelled coding agents, Well-Architected reviews, and documentation upkeep.",
+  "author": {
+    "name": "Brendan Kowitz",
+    "url": "https://github.com/brendankowitz"
+  },
+  "homepage": "https://github.com/brendankowitz/agent-marketplace",
+  "license": "BSD-3-Clause AND Apache-2.0",
+  "skills": [
+    "./plugins/discover/skills/",
+    "./plugins/decide/skills/",
+    "./plugins/build/skills/",
+    "./plugins/review/skills/",
+    "./plugins/document/skills/"
+  ],
+  "agents": [
+    "./plugins/pr-review-toolkit/agents/",
+    "./plugins/decide/agents/",
+    "./plugins/build/agents/",
+    "./plugins/review/agents/",
+    "./plugins/document/agents/"
+  ],
+  "commands": "./plugins/pr-review-toolkit/commands/",
+  "interface": {
+    "displayName": "agent-marketplace",
+    "shortDescription": "Agents and skills for the full feature lifecycle: discover, decide, build, review, document",
+    "developerName": "Brendan Kowitz",
+    "websiteURL": "https://github.com/brendankowitz/agent-marketplace"
+  }
+}
