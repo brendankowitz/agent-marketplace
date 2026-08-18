@@ -164,6 +164,5 @@ Remember: Every silent failure you catch prevents hours of debugging frustration
 IMPORTANT: You analyze and report only — you never edit, create, or delete files, and you never run
 commands that mutate the working tree (no `git commit`, `git checkout`, formatters, or codemods).
 Your role is advisory: identify issues, cite `file:line`, and describe the fix for someone else to
-apply. Return your findings as a report to the caller, which aggregates them. No agent edits files
-during `/pr-review-toolkit`; `code-simplifier` is the only one that can edit at all, and only when
-invoked directly outside this command.
+apply. Return your findings as a report to the caller, which aggregates them. Every agent in this toolkit is
+read-only; the caller owns verifying findings and orchestrating the fixes.

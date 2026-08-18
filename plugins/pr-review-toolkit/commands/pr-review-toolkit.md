@@ -58,8 +58,13 @@ Because nothing mutates during the review, the agents can safely run in parallel
    - **errors** - Check error handling for silent failures
    - **types** - Analyze type design and invariants (if new types added)
    - **code** - General code review for project guidelines
-   - **simplify** - Simplify code for clarity and maintainability, and right-size over-defensive null/type checks
+   - **simplify** - Report simplifications for clarity and maintainability, and right-size over-defensive null/type checks
    - **all** - Run all applicable reviews (default)
+
+   Modifiers (combinable with any aspect above):
+
+   - **parallel** - Launch the applicable agents simultaneously instead of sequentially (step 5)
+   - **report-only** - Stop after step 7; do not run the fix phase (step 8)
 
 3. **Identify Changed Files**
    - Run `git diff --name-only` to see modified files
@@ -144,8 +149,11 @@ Because nothing mutates during the review, the agents can safely run in parallel
 
 8. **Orchestrate the Fixes**
 
-   Confirm with the user which findings to apply (default: critical + important; suggestions only
-   if asked), then delegate the work to editing agents:
+   **Skip this step entirely if the user passed `report-only`** — deliver the step 7 summary and
+   stop, leaving the tree untouched.
+
+   Otherwise, confirm with the user which findings to apply (default: critical + important;
+   suggestions only if asked), then delegate the work to editing agents:
 
    - **Group by file, not by finding.** Two agents editing the same file collide. One worker owns
      a file — or a disjoint set of files — for the whole pass. Disjoint groups can run in

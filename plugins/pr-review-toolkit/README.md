@@ -41,14 +41,18 @@ It additionally uses `AGENTS.md` / `.github/copilot-instructions.md` conventions
 upstream's `CLAUDE.md`, and carries local additions such as the code-simplifier's
 defensive-code guidance and the uniform `## Output contract` section on every agent.
 
-Upstream ships no `tools:` allowlists — every agent there inherits full tools and *could* edit
-files — and states the advisory/read-only contract on only one of its six agents
-(`comment-analyzer`). In observed use the review agents do all report up, and the orchestrator then
-launches editing agents to work through the aggregated findings. So upstream's effective shape is
-already review-then-apply; it just rests on convention, since nothing prevents a review agent from
-editing and the apply phase is emergent rather than documented.
+Upstream ships no `tools:` allowlists — every agent there inherits full tools and can edit files —
+and states the advisory/read-only contract on only one of its six agents (`comment-analyzer`). Its
+`code-simplifier` is written as an editing agent outright ("apply refinements", "refining code
+immediately after it's written"), and its command ends at a "Recommended Action" checklist with no
+apply phase defined.
 
-This port makes that shape explicit. Every agent is read-only and says so, no agent carries `edit`,
+What actually happens at runtime is looser than either: the review agents have been observed
+reporting up rather than editing, with the orchestrator then spawning its own editing agents to
+work through the findings. That is emergent behavior, not something upstream's files specify — so
+which agents edit depends on the model's judgement on the day.
+
+This port removes that ambiguity. Every agent is read-only and says so, no agent carries `edit`,
 and the command documents the three responsibilities it owns on top of the reviews: consolidate,
 verify independently, orchestrate the fixes. Note that `tools:` is a Copilot CLI / Kimi Code
 dialect; it is one more reason this plugin is not offered for Claude Code, where the allowlist
