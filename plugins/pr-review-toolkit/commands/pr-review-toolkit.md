@@ -18,6 +18,32 @@ Run a comprehensive pull request review by delegating to multiple specialized ag
 
 **Review Aspects (optional):** "$ARGUMENTS"
 
+## How this command works
+
+**Every agent in this toolkit is read-only.** All six review the diff and report findings; none of
+them edits, and none carries `edit` in its `tools` allowlist. Applying fixes is this command's job,
+not theirs.
+
+| Agent | Reports on |
+| --- | --- |
+| `code-reviewer` | Project-guideline compliance and bugs (confidence-scored) |
+| `pr-test-analyzer` | Behavioral test coverage and gaps |
+| `comment-analyzer` | Comment accuracy and comment rot |
+| `silent-failure-hunter` | Swallowed errors and unjustified fallbacks |
+| `type-design-analyzer` | Type encapsulation and invariants |
+| `code-simplifier` | Simplifications, emitted as before/after patches |
+
+You own three things the agents cannot do individually:
+
+1. **Consolidate** the reports into one deduplicated, severity-ordered list.
+2. **Verify independently** — the agents are advisory and can be wrong. Spot-check findings against
+   the actual code before acting on them.
+3. **Orchestrate the fixes** — fan the accepted findings out to editing agents, then confirm the
+   result.
+
+Because nothing mutates during the review, the agents can safely run in parallel and their
+`file:line` citations stay valid through consolidation.
+
 ## Review Workflow:
 
 1. **Determine Review Scope**
@@ -48,11 +74,11 @@ Run a comprehensive pull request review by delegating to multiple specialized ag
    - **If comments/docs added**: comment-analyzer
    - **If error handling changed**: silent-failure-hunter
    - **If types added/modified**: type-design-analyzer
-   - **After passing review**: code-simplifier (polish and refine)
+   - **After the others report**: code-simplifier (polish suggestions as patches)
 
-   Note: code-simplifier is the only agent that edits; the rest are read-only. On error-handling
-   and type-design constructs it defers to silent-failure-hunter and type-design-analyzer, which
-   run first — it should not re-litigate or undo their findings.
+   Note: nothing edits during the review — all six report. On error-handling and type-design
+   constructs code-simplifier defers to silent-failure-hunter and type-design-analyzer — it should
+   not re-litigate or undo their findings.
 
 5. **Launch Review Agents**
 
@@ -73,18 +99,30 @@ Run a comprehensive pull request review by delegating to multiple specialized ag
    - Launch all agents simultaneously
    - Faster for comprehensive review
    - Results come back together
+   - Always safe, since no agent mutates the tree
 
-6. **Aggregate Results**
+6. **Consolidate Results**
 
-   After agents complete, summarize:
-   - **Critical Issues** (must fix before merge)
-   - **Important Issues** (should fix)
-   - **Suggestions** (nice to have)
-   - **Positive Observations** (what's good)
+   After agents complete, merge the reports:
+   - Deduplicate — several agents often flag the same line from different angles. Merge them into
+     one finding listing each agent that raised it; agreement across agents raises confidence.
+   - Group by severity: **Critical** (must fix), **Important** (should fix), **Suggestions**
+     (nice to have), plus **Positive Observations**.
+   - Note conflicts rather than silently picking a side. Where `code-simplifier` wants a guard
+     removed and `silent-failure-hunter` wants it kept, the latter wins — surface the disagreement.
 
-7. **Provide Action Plan**
+7. **Verify Findings Independently**
 
-   Organize findings:
+   The agents are advisory and can be wrong. Before acting, spot-check:
+   - **Read the cited code.** Confirm the `file:line` says what the finding claims. Drop findings
+     that misread the code.
+   - **Check it's in scope.** Pre-existing issues outside the diff are not this PR's problem —
+     note them separately rather than folding them into the fix list.
+   - **Weight the confidence signal.** `code-reviewer` scores 0-100 and reports only ≥ 80; treat
+     the low end of that range as needing a closer look.
+   - **Don't relay a finding you couldn't confirm.** Mark it as unverified so the user can judge.
+
+   Present the verified list:
    ```markdown
    # PR Review Summary
 
@@ -100,18 +138,40 @@ Run a comprehensive pull request review by delegating to multiple specialized ag
    ## Strengths
    - What's well-done in this PR
 
-   ## Recommended Action
-   1. Fix critical issues first
-   2. Address important issues
-   3. Consider suggestions
-   4. Re-run review after fixes
+   ## Unverified / Out of Scope
+   - Findings you could not confirm, or that predate this change
    ```
+
+8. **Orchestrate the Fixes**
+
+   Confirm with the user which findings to apply (default: critical + important; suggestions only
+   if asked), then delegate the work to editing agents:
+
+   - **Group by file, not by finding.** Two agents editing the same file collide. One worker owns
+     a file — or a disjoint set of files — for the whole pass. Disjoint groups can run in
+     parallel; anything overlapping runs sequentially.
+   - **Pass each finding verbatim** — the `file:line`, the reviewing agent's rationale, and for
+     `code-simplifier` findings the exact before/after patch. Workers apply the finding; they
+     don't re-derive it.
+   - **Don't let workers expand scope.** They fix the cited finding and nothing else. Anything
+     noticed in passing comes back as a new finding, not an unrequested edit.
+
+   Then close the loop:
+
+   1. Run the project's existing test/build/lint command covering the touched files.
+   2. Report per finding: applied, deferred (with reason), or failed verification.
+   3. Re-run the affected review agents against the updated tree to confirm the findings are
+      actually resolved — citations from the pre-fix tree will have moved.
+
+   If verification fails, revert the offending change and report the finding as still open rather
+   than leaving the tree broken.
 
 ## Usage Examples:
 
 **Full review (default):**
 ```
 /pr-review-toolkit
+# Agents report; you confirm scope before any fixes are applied
 ```
 
 **Specific aspects:**
@@ -123,13 +183,19 @@ Run a comprehensive pull request review by delegating to multiple specialized ag
 # Reviews only code comments
 
 /pr-review-toolkit simplify
-# Simplifies code after passing review
+# Reports simplification patches for you to apply
 ```
 
 **Parallel review:**
 ```
 /pr-review-toolkit all parallel
-# Launches all agents in parallel
+# Launches all agents in parallel — always safe, none of them edit
+```
+
+**Review only, skip the fix phase:**
+```
+/pr-review-toolkit all report-only
+# Stop after step 7; leave the tree untouched
 ```
 
 ## Agent Descriptions:
@@ -165,6 +231,7 @@ Run a comprehensive pull request review by delegating to multiple specialized ag
 - Removes redundant null checks, argument guards, and type tests
 - Applies project standards
 - Preserves functionality
+- Emits before/after patches rather than editing
 
 ## Tips:
 
@@ -204,6 +271,7 @@ Run a comprehensive pull request review by delegating to multiple specialized ag
 ## Notes:
 
 - Agents run autonomously and return detailed reports
+- Every agent is read-only — this command owns consolidating, verifying, and applying
 - Each agent focuses on its specialty for deep analysis
 - Results are actionable with specific file:line references
 - All agents available in the `/agent` list
