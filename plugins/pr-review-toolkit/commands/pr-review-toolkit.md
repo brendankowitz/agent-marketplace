@@ -1,6 +1,6 @@
 ---
 description: "Comprehensive PR review using specialized agents"
-argument-hint: "[review-aspects] [parallel] [report-only]"
+argument-hint: "[review-aspects] [model:<names>] [parallel] [report-only]"
 ---
 
 <!--
@@ -10,11 +10,12 @@ argument-hint: "[review-aspects] [parallel] [report-only]"
   Changes: converted to GitHub Copilot command format; renamed from upstream's
   commands/review-pr.md and invocations updated from /pr-review-toolkit:review-pr to
   /pr-review-toolkit; frontmatter reworked (dropped allowed-tools, extended argument-hint
-  with the parallel and report-only modifiers); CLAUDE.md references replaced with
+  with the model/parallel/report-only modifiers); CLAUDE.md references replaced with
   AGENTS.md / .github/copilot-instructions.md; added the read-only contract summary and
-  agent table, the parallel/report-only modifiers, and the consolidate/verify/apply phases
-  (steps 6-8), which replace upstream's "Recommended Action" checklist -- all local
-  additions, not upstream.
+  agent table, reviewer model selection, the parallel/report-only modifiers, and the
+  consolidate/verify/apply phases (steps 6-8), which replace upstream's "Recommended
+  Action" checklist; upstream's conditional agent-applicability rules replaced with
+  running all six by default -- all local additions, not upstream.
 -->
 
 # Comprehensive PR Review
@@ -46,6 +47,10 @@ You own three things the agents cannot do individually:
 3. **Orchestrate the fixes** — apply the accepted findings, delegating to editing subagents where
    that helps, then confirm the result.
 
+You also choose the model each agent reviews with (step 4). Copilot CLI routes delegated subagents
+to the session model unless you name one, so without that choice every agent shares one model's
+blind spots.
+
 Because nothing mutates during the review, the agents can safely run in parallel and their
 `file:line` citations stay valid through consolidation.
 
@@ -53,48 +58,73 @@ Because nothing mutates during the review, the agents can safely run in parallel
 
 1. **Determine Review Scope**
    - Check git status to identify changed files
-   - Parse arguments to see if user requested specific review aspects
-   - Default: Run all applicable reviews
+   - Parse arguments for aspects, modifiers, and `model:`
+   - Default: run all six agents
 
-2. **Available Review Aspects:**
+2. **Arguments**
+
+   Aspects — supply one or more to narrow the run. Omit them and all six agents run.
 
    - **comments** - Analyze code comment accuracy and maintainability
    - **tests** - Review test coverage quality and completeness
    - **errors** - Check error handling for silent failures
-   - **types** - Analyze type design and invariants (if new types added)
+   - **types** - Analyze type design and invariants
    - **code** - General code review for project guidelines
    - **simplify** - Report simplifications for clarity and maintainability, and right-size over-defensive null/type checks
-   - **all** - Run all applicable reviews (default)
+   - **all** - Run all six (default)
 
    Modifiers (combinable with any aspect above):
 
-   - **parallel** - Launch the applicable agents simultaneously instead of sequentially (step 5)
+   - **parallel** - Launch the agents simultaneously instead of sequentially (step 5)
    - **report-only** - Stop after the verified summary; do not run the fix phase
+   - **model:`<names>`** - Which model(s) to review with; see step 4
 
 3. **Identify Changed Files**
    - Run `git diff --name-only` to see modified files
    - Check if PR already exists: `gh pr view`
-   - Identify file types and what reviews apply
+   - Note the file types, so you can tell each agent what it's looking at
 
-4. **Determine Applicable Reviews**
+4. **Choose the Reviewer Model(s)**
 
-   Based on changes:
-   - **Always applicable**: code-reviewer (general quality)
-   - **If test files changed**: pr-test-analyzer
-   - **If comments/docs added**: comment-analyzer
-   - **If error handling changed**: silent-failure-hunter
-   - **If types added/modified**: type-design-analyzer
-   - **If code changed**: code-simplifier (polish suggestions as patches)
+   Copilot CLI ignores the `model:` field in agent frontmatter — it routes delegated subagents to
+   the **session model**. Naming a model at dispatch time is therefore the only thing that selects
+   one. Say nothing and you get six reviewers on one model: six correlated opinions rather than six
+   independent ones.
 
-   Note: nothing edits during the review — all six report, so they have no ordering dependency on
-   each other and can run in any order. On error-handling and type-design constructs code-simplifier
-   defers to silent-failure-hunter and type-design-analyzer: it should not re-litigate their
-   findings. Some overlap is expected — code-simplifier's defensive-code guidance touches
-   nullability and guard removal — which is why step 6 defines a tiebreak.
+   Aliases:
+
+   | Alias | Model | Provider | Effort |
+   |-------|-------|----------|--------|
+   | `opus` | `claude-opus-5` | Anthropic | high |
+   | `sonnet` | `claude-sonnet-4.6` | Anthropic | high |
+   | `sol` | `gpt-5.6-sol` | OpenAI | high |
+   | `terra` | `gpt-5.6-terra` | OpenAI | high |
+   | `gemini` | `gemini-3.1-pro-preview` | Google | high |
+
+   **If the user passed `model:`** — honor it and don't ask. One name runs every agent on that
+   model (`model:sol`). Several names spread the agents across them, assigned round-robin in the
+   step 5 order (`model:opus,sol,gemini`).
+
+   **If the user passed nothing** — infer the provider from the session model (`claude-*` →
+   Anthropic, `gpt-*` → OpenAI, `gemini-*` → Google), then ask **once**, before the first dispatch,
+   offering the inferred default first:
+
+   ```
+   Reviewing with <inferred alias> (inferred from your session model).
+   Use that, or pick another: opus / sol / gemini, or a mixture like opus,sol.
+   ```
+
+   Record the answer and never ask again during the run. Don't interrupt a run in progress to ask.
+
+   **Prefer a mixture when the diff carries real risk.** Reviewers on different models fail
+   differently, so a finding two providers raise independently is worth more than one raised twice
+   by the same model — and single-model findings are where false positives concentrate. Step 6 uses
+   this.
 
 5. **Launch Review Agents**
 
-   Delegate each applicable review to the corresponding custom agent as a subagent:
+   Run all six unless the user narrowed the set with aspects. Pass each one the model chosen in
+   step 4, its effort from the table, and the review scope:
    - `pr-review-toolkit:code-reviewer`
    - `pr-review-toolkit:pr-test-analyzer`
    - `pr-review-toolkit:comment-analyzer`
@@ -118,18 +148,29 @@ Because nothing mutates during the review, the agents can safely run in parallel
 
    After agents complete, merge the reports:
    - Deduplicate — several agents often flag the same line from different angles. Merge them into
-     one finding listing each agent that raised it; agreement across agents raises confidence.
+     one finding listing each agent that raised it, **and which model each ran on**.
+   - Weight agreement by independence. Two agents on *different* models raising the same finding is
+     a much stronger signal than two on the same model, which share failure modes. Rank a
+     cross-model finding above a same-model one at equal severity.
    - Group by severity: **Critical** (must fix), **Important** (should fix), **Suggestions**
      (nice to have), plus **Positive Observations**.
    - Resolve conflicts explicitly, never silently. Where `code-simplifier` wants a guard removed
      and `silent-failure-hunter` wants it kept, keep the guard — and record both positions in the
      finding so the user can override.
+   - Where agents contradict each other on a *factual* claim, don't average them — go verify it in
+     step 7. A confident claim from one agent that two others contradict is usually the wrong one.
 
 7. **Verify Findings Independently**
 
    The agents are advisory and can be wrong. Before acting, spot-check:
    - **Read the cited code.** Confirm the `file:line` says what the finding claims. Drop findings
      that misread the code.
+   - **Scrutinize single-source findings hardest.** A finding only one agent raised — especially
+     one no other model saw — is where false positives concentrate. Check it before it reaches the
+     fix list.
+   - **Distinguish verified from inferred.** Agents sometimes present reasoning as fact ("no file
+     records this, so it must have come from upstream"). If a finding rests on an inference about
+     something checkable, check it.
    - **Check it's in scope.** Pre-existing issues outside the diff are not this PR's problem —
      note them separately rather than folding them into the fix list.
    - **Weight the confidence signal.** `code-reviewer` scores 0-100 and reports only ≥ 80; treat
@@ -195,7 +236,21 @@ Because nothing mutates during the review, the agents can safely run in parallel
 **Full review (default):**
 ```
 /pr-review-toolkit
-# Agents report; you confirm scope before any fixes are applied
+# All six agents. Asks once which model to review with, defaulting to your
+# session provider, then confirms scope before any fixes are applied.
+```
+
+**Choosing the reviewer model:**
+```
+/pr-review-toolkit model:opus
+# All six on claude-opus-5
+
+/pr-review-toolkit model:sol
+# All six on gpt-5.6-sol
+
+/pr-review-toolkit model:opus,sol,gemini
+# Spread the six across three providers — findings raised by more than one
+# provider carry more weight in consolidation
 ```
 
 **Specific aspects:**
@@ -261,6 +316,8 @@ Because nothing mutates during the review, the agents can safely run in parallel
 
 - **Run early**: Before creating PR, not after
 - **Focus on changes**: Agents analyze git diff by default
+- **Mix models on risky diffs**: `model:opus,sol,gemini` — reviewers on different models fail
+  differently, and cross-provider agreement is the strongest confidence signal available
 - **Address critical first**: The fix phase defaults to critical + important, in that order
 - **Use `report-only`**: When you want the findings without the tree being touched
 - **Use specific reviews**: Target specific aspects when you know the concern

@@ -15,11 +15,16 @@ this closes the direct edit path, not the shell path — the agents retain `exec
 need `git diff`, so the ban on working-tree-mutating commands rests on instruction rather than
 permission.
 
-Plus the **`/pr-review-toolkit` command**, which ties the six together. It inspects the diff,
-delegates each applicable review to the matching agent as a subagent, and then owns the three
-things no individual agent can do: consolidating the reports into one deduplicated list,
-independently verifying the findings before acting on them, and orchestrating the fixes through
-editing agents.
+Plus the **`/pr-review-toolkit` command**, which ties the six together. It inspects the diff, runs
+all six agents as subagents on the model or mixture you choose, and then owns the three things no
+individual agent can do: consolidating the reports into one deduplicated list, independently
+verifying the findings before acting on them, and orchestrating the fixes.
+
+Reviewer models are selectable — `model:opus`, `model:sol`, `model:gemini`, or a mixture like
+`model:opus,sol,gemini`. This matters because Copilot CLI ignores the `model:` field in agent
+frontmatter and routes delegated subagents to the session model, so without naming one you get six
+reviewers sharing a single model's blind spots. Findings raised independently by more than one
+provider are weighted above findings raised repeatedly by one.
 
 Ported from Anthropic's Claude Code `pr-review-toolkit` plugin (Apache-2.0). See the repository-root
 README for install and usage instructions.
