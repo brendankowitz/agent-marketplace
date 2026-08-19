@@ -47,10 +47,11 @@ and states the advisory/read-only contract on only one of its six agents (`comme
 immediately after it's written"), and its command ends at a "Recommended Action" checklist with no
 apply phase defined.
 
-What actually happens at runtime is looser than either: the review agents have been observed
-reporting up rather than editing, with the orchestrator then spawning its own editing agents to
-work through the findings. That is emergent behavior, not something upstream's files specify — so
-which agents edit depends on the model's judgement on the day.
+What actually happens at runtime is looser than either: in a Claude Code session observed in
+February 2026, the review agents reported up rather than editing, with the orchestrator then
+spawning its own editing agents to work through the findings. That is emergent behavior, not
+something upstream's files specify, and it is not guaranteed to hold across models or versions —
+so which agents edit depends on the model's judgement on the day.
 
 This port removes that ambiguity. Every agent is read-only and says so, no agent carries `edit`,
 and the command documents the three responsibilities it owns on top of the reviews: consolidate,

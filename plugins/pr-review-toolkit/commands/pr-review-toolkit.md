@@ -7,9 +7,14 @@ argument-hint: "[review-aspects] [parallel] [report-only]"
   Modified work — ported from the Claude Code 'pr-review-toolkit' plugin
   (https://github.com/anthropics/claude-plugins-official/tree/main/plugins/pr-review-toolkit),
   Copyright Anthropic, licensed under the Apache License, Version 2.0.
-  Changes: converted to GitHub Copilot command format; frontmatter reworked
-  (dropped allowed-tools); CLAUDE.md references replaced with
-  AGENTS.md / .github/copilot-instructions.md.
+  Changes: converted to GitHub Copilot command format; renamed from upstream's
+  commands/review-pr.md and invocations updated from /pr-review-toolkit:review-pr to
+  /pr-review-toolkit; frontmatter reworked (dropped allowed-tools, extended argument-hint
+  with the parallel and report-only modifiers); CLAUDE.md references replaced with
+  AGENTS.md / .github/copilot-instructions.md; added the read-only contract summary and
+  agent table, the parallel/report-only modifiers, and the consolidate/verify/apply phases
+  (steps 6-8), which replace upstream's "Recommended Action" checklist -- all local
+  additions, not upstream.
 -->
 
 # Comprehensive PR Review
@@ -38,8 +43,8 @@ You own three things the agents cannot do individually:
 1. **Consolidate** the reports into one deduplicated, severity-ordered list.
 2. **Verify independently** — the agents are advisory and can be wrong. Spot-check findings against
    the actual code before acting on them.
-3. **Orchestrate the fixes** — fan the accepted findings out to editing agents, then confirm the
-   result.
+3. **Orchestrate the fixes** — apply the accepted findings, delegating to editing subagents where
+   that helps, then confirm the result.
 
 Because nothing mutates during the review, the agents can safely run in parallel and their
 `file:line` citations stay valid through consolidation.
@@ -64,7 +69,7 @@ Because nothing mutates during the review, the agents can safely run in parallel
    Modifiers (combinable with any aspect above):
 
    - **parallel** - Launch the applicable agents simultaneously instead of sequentially (step 5)
-   - **report-only** - Stop after step 7; do not run the fix phase (step 8)
+   - **report-only** - Stop after the verified summary; do not run the fix phase
 
 3. **Identify Changed Files**
    - Run `git diff --name-only` to see modified files
@@ -83,9 +88,9 @@ Because nothing mutates during the review, the agents can safely run in parallel
 
    Note: nothing edits during the review — all six report, so they have no ordering dependency on
    each other and can run in any order. On error-handling and type-design constructs code-simplifier
-   defers by topic: it stays off that ground entirely rather than waiting to read
-   silent-failure-hunter's or type-design-analyzer's findings, so it should never re-litigate or
-   contradict them.
+   defers to silent-failure-hunter and type-design-analyzer: it should not re-litigate their
+   findings. Some overlap is expected — code-simplifier's defensive-code guidance touches
+   nullability and guard removal — which is why step 6 defines a tiebreak.
 
 5. **Launch Review Agents**
 
@@ -98,11 +103,12 @@ Because nothing mutates during the review, the agents can safely run in parallel
    - `pr-review-toolkit:code-simplifier`
 
    **Sequential approach** (one at a time):
-   - Easier to understand and act on
-   - Each report is complete before next
+   - Easier to follow when you want to read each report as it lands
    - Good for interactive review
+   - Note that no agent consumes another's output, so sequencing buys correctness nothing —
+     prefer it only for readability
 
-   **Parallel approach** (user can request):
+   **Parallel approach** (recommended; `parallel`):
    - Launch all agents simultaneously
    - Faster for comprehensive review
    - Results come back together
@@ -115,8 +121,9 @@ Because nothing mutates during the review, the agents can safely run in parallel
      one finding listing each agent that raised it; agreement across agents raises confidence.
    - Group by severity: **Critical** (must fix), **Important** (should fix), **Suggestions**
      (nice to have), plus **Positive Observations**.
-   - Note conflicts rather than silently picking a side. Where `code-simplifier` wants a guard
-     removed and `silent-failure-hunter` wants it kept, the latter wins — surface the disagreement.
+   - Resolve conflicts explicitly, never silently. Where `code-simplifier` wants a guard removed
+     and `silent-failure-hunter` wants it kept, keep the guard — and record both positions in the
+     finding so the user can override.
 
 7. **Verify Findings Independently**
 
@@ -127,7 +134,8 @@ Because nothing mutates during the review, the agents can safely run in parallel
      note them separately rather than folding them into the fix list.
    - **Weight the confidence signal.** `code-reviewer` scores 0-100 and reports only ≥ 80; treat
      the low end of that range as needing a closer look.
-   - **Don't relay a finding you couldn't confirm.** Mark it as unverified so the user can judge.
+   - **Don't present an unconfirmed finding as verified.** List it under Unverified so the user
+     can judge. Reserve dropping for findings you actively disconfirmed.
 
    Present the verified list:
    ```markdown
@@ -151,15 +159,21 @@ Because nothing mutates during the review, the agents can safely run in parallel
 
 8. **Orchestrate the Fixes**
 
-   **Skip this step entirely if the user passed `report-only`** — deliver the step 7 summary and
-   stop, leaving the tree untouched.
+   **Skip this step entirely if the user passed `report-only`** — deliver the verified summary from
+   the previous step and stop, leaving the tree untouched.
 
    Otherwise, confirm with the user which findings to apply (default: critical + important;
-   suggestions only if asked), then delegate the work to editing agents:
+   suggestions only if asked). None of this toolkit's agents can apply them, so either do it
+   yourself or delegate to a general-purpose editing subagent — this marketplace's
+   `build:coding-agent` suits it well when installed, but do not assume it is: this plugin is
+   deliberately standalone, so fall back to applying the edits directly in this session.
+
+   When you delegate to more than one worker:
 
    - **Group by file, not by finding.** Two agents editing the same file collide. One worker owns
      a file — or a disjoint set of files — for the whole pass. Disjoint groups can run in
-     parallel; anything overlapping runs sequentially.
+     parallel; anything overlapping runs sequentially. With a single worker, or findings confined
+     to one file, skip the grouping and apply them in order.
    - **Pass each finding verbatim** — the `file:line`, the reviewing agent's rationale, and for
      `code-simplifier` findings the exact before/after patch. Workers apply the finding; they
      don't re-derive it.
@@ -205,7 +219,7 @@ Because nothing mutates during the review, the agents can safely run in parallel
 **Review only, skip the fix phase:**
 ```
 /pr-review-toolkit all report-only
-# Stop after step 7; leave the tree untouched
+# Stop after the verified summary; leave the tree untouched
 ```
 
 ## Agent Descriptions:
@@ -247,8 +261,8 @@ Because nothing mutates during the review, the agents can safely run in parallel
 
 - **Run early**: Before creating PR, not after
 - **Focus on changes**: Agents analyze git diff by default
-- **Address critical first**: Fix high-priority issues before lower priority
-- **Re-run after fixes**: Verify issues are resolved
+- **Address critical first**: The fix phase defaults to critical + important, in that order
+- **Use `report-only`**: When you want the findings without the tree being touched
 - **Use specific reviews**: Target specific aspects when you know the concern
 
 ## Workflow Integration:
@@ -257,7 +271,7 @@ Because nothing mutates during the review, the agents can safely run in parallel
 ```
 1. Write code
 2. Run: /pr-review-toolkit code errors
-3. Fix any critical issues
+3. Confirm which findings to apply when prompted
 4. Commit
 ```
 
@@ -265,8 +279,8 @@ Because nothing mutates during the review, the agents can safely run in parallel
 ```
 1. Stage all changes
 2. Run: /pr-review-toolkit all
-3. Address all critical and important issues
-4. Run specific reviews again to verify
+3. Confirm the critical and important findings when prompted
+4. The command re-runs the affected agents to verify
 5. Create PR
 ```
 
