@@ -1,6 +1,6 @@
 ---
 description: "Comprehensive PR review using specialized agents"
-argument-hint: "[review-aspects]"
+argument-hint: "[review-aspects] [parallel] [report-only]"
 ---
 
 <!--
@@ -79,11 +79,13 @@ Because nothing mutates during the review, the agents can safely run in parallel
    - **If comments/docs added**: comment-analyzer
    - **If error handling changed**: silent-failure-hunter
    - **If types added/modified**: type-design-analyzer
-   - **After the others report**: code-simplifier (polish suggestions as patches)
+   - **If code changed**: code-simplifier (polish suggestions as patches)
 
-   Note: nothing edits during the review — all six report. On error-handling and type-design
-   constructs code-simplifier defers to silent-failure-hunter and type-design-analyzer — it should
-   not re-litigate or undo their findings.
+   Note: nothing edits during the review — all six report, so they have no ordering dependency on
+   each other and can run in any order. On error-handling and type-design constructs code-simplifier
+   defers by topic: it stays off that ground entirely rather than waiting to read
+   silent-failure-hunter's or type-design-analyzer's findings, so it should never re-litigate or
+   contradict them.
 
 5. **Launch Review Agents**
 
@@ -104,7 +106,7 @@ Because nothing mutates during the review, the agents can safely run in parallel
    - Launch all agents simultaneously
    - Faster for comprehensive review
    - Results come back together
-   - Always safe, since no agent mutates the tree
+   - Always safe: no agent mutates the tree, and none depends on another's output
 
 6. **Consolidate Results**
 
@@ -234,10 +236,10 @@ Because nothing mutates during the review, the agents can safely run in parallel
 - Reviews general code quality
 
 **code-simplifier**:
-- Simplifies complex code
-- Improves clarity and readability
-- Removes redundant null checks, argument guards, and type tests
-- Applies project standards
+- Reports simplifications for complex code
+- Identifies clarity and readability improvements
+- Identifies redundant null checks, argument guards, and type tests
+- Checks against project standards
 - Preserves functionality
 - Emits before/after patches rather than editing
 
