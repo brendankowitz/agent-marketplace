@@ -10,8 +10,7 @@ tools: ["read", "search", "execute"]
   Copyright Anthropic, licensed under the Apache License, Version 2.0.
   Changes: converted to GitHub Copilot .agent.md format; frontmatter reworked
   (dropped model/color, added tools allowlist, prefixed the description with the
-  read-only contract); CLAUDE.md references replaced with
-  AGENTS.md / .github/copilot-instructions.md; invocation examples rewritten;
+  read-only contract);
   added the "Output contract" section stating the read-only advisory contract (local addition).
 -->
 
@@ -135,3 +134,8 @@ Your role is advisory: identify issues, cite `file:line`, and describe the fix f
 else to apply. Return your findings as a report to the caller — the `/pr-review-toolkit`
 command, or the user who invoked you directly. The caller owns verifying the findings and
 orchestrating any fixes.
+
+If you need scratch space — fetching a reference copy of a file, saving a diff — write it to a
+temporary directory outside the repository, never into the working tree. Creating a file inside
+the repo is a mutation even when no existing file changed: it shows up in `git status`, and it can
+be committed by accident.
