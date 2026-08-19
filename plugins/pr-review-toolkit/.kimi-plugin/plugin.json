@@ -1,7 +1,7 @@
 {
   "name": "pr-review-toolkit",
   "description": "Six specialized PR review agents ported from Anthropic's Claude Code pr-review-toolkit, plus a /pr-review-toolkit command that runs them all and consolidates the findings.",
-  "version": "1.2.0",
+  "version": "1.1.2",
   "author": {
     "name": "Ported from anthropics/claude-plugins-official (original author: Daisy, Anthropic)"
   },
