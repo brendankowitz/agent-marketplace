@@ -8,7 +8,7 @@ manifests — the same approach as [superpowers](https://github.com/obra/superpo
 
 | Plugin | Contents | License |
 |---|---|---|
-| `pr-review-toolkit` | 6 PR review agents (code quality, test coverage, silent failures, comment accuracy, type design, simplification) + `/pr-review-toolkit` command that orchestrates them all. Ported from Anthropic's Claude Code [pr-review-toolkit](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/pr-review-toolkit). **Copilot CLI and Kimi Code only** — Claude Code users should use the upstream original. | Apache-2.0 |
+| `pr-review-toolkit` | 6 read-only PR review agents (code quality, test coverage, silent failures, comment accuracy, type design, simplification) + `/pr-review-toolkit` command that orchestrates them all. Ported from Anthropic's Claude Code [pr-review-toolkit](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/pr-review-toolkit). **Copilot CLI and Kimi Code only** — Claude Code users should use the upstream original. | Apache-2.0 |
 | `discover` | Start a feature right: `create-feature`, `create-investigation`, `reject-investigation` skills | BSD-3-Clause |
 | `decide` | `adr-analyzer` agent + `create-adr`, `accept-adr` skills | BSD-3-Clause |
 | `build` | Levelled coding agents (`fast-coding-agent` → `coding-agent` → `complex-coding-agent`) + `coding-philosophy`, `implement-task`, `engineer-mode` skills | BSD-3-Clause |
