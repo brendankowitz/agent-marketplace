@@ -104,23 +104,27 @@ If citations start landing on the wrong lines, suspect that before suspecting th
    one. Say nothing and you get six reviewers on one model: six correlated opinions rather than six
    independent ones.
 
-   Aliases:
+   Aliases name a **model family**, not a pinned version. Resolve each to the newest model in that
+   family the host currently offers, so this table doesn't rot as versions ship:
 
-   | Alias | Model | Provider |
-   |-------|-------|----------|
-   | `opus` | `claude-opus-5` | Anthropic (default) |
-   | `sonnet` | `claude-sonnet-4.6` | Anthropic |
-   | `sol` | `gpt-5.6-sol` | OpenAI (default) |
-   | `terra` | `gpt-5.6-terra` | OpenAI |
-   | `gemini` | `gemini-3.1-pro-preview` | Google (default) |
+   | Alias | Family | Provider |
+   |-------|--------|----------|
+   | `opus` | latest Claude Opus | Anthropic (default) |
+   | `sonnet` | latest Claude Sonnet | Anthropic |
+   | `sol` | latest GPT Sol | OpenAI (default) |
+   | `terra` | latest GPT Terra | OpenAI |
+   | `gemini` | latest Gemini Pro | Google (default) |
 
-   **How the model actually reaches the agent.** Pass the alias's **Model** column value as the
-   `model` argument of the subagent dispatch itself — the same argument you would use to run any
-   subagent on a non-default model. It is not something you can put in the prompt text: a model
-   name mentioned in the prompt has no effect on which model runs, and the agent's own frontmatter
-   is ignored by Copilot CLI. If your dispatch mechanism has no such argument, you cannot honor
-   this modifier — say so plainly and run on the session model rather than reporting a mixture you
-   did not achieve.
+   If a family has no model available in this session, say so and offer the ones that do — don't
+   silently substitute a different family.
+
+   **How the model actually reaches the agent.** Resolve the alias to a concrete model identifier
+   from what the host offers, then pass that identifier as the `model` argument of the subagent
+   dispatch itself — the same argument you would use to run any subagent on a non-default model. It
+   is not something you can put in the prompt text: a model name mentioned in the prompt has no
+   effect on which model runs, and the agent's own frontmatter is ignored by Copilot CLI. If your
+   dispatch mechanism has no such argument, you cannot honor this modifier — say so plainly and run
+   on the session model rather than reporting a mixture you did not achieve.
 
    **Record what you actually dispatched, not what you intended.** The run summary must name the
    model each agent really ran on. This is the only thing that makes a silent failure here
@@ -195,9 +199,12 @@ If citations start landing on the wrong lines, suspect that before suspecting th
    ```markdown
    | Agent | Model | Status |
    |---|---|---|
-   | code-reviewer | claude-opus-5 | returned |
-   | silent-failure-hunter | gpt-5.6-sol | FAILED — dispatch error, not re-run |
+   | code-reviewer | <resolved opus model id> | returned |
+   | silent-failure-hunter | <resolved sol model id> | FAILED — dispatch error, not re-run |
    ```
+
+   Record the concrete model identifier you actually dispatched, not the alias — the alias is what
+   was asked for, the identifier is what ran.
 
    Then merge the reports:
    - Deduplicate — several agents often flag the same line from different angles. Merge them into
@@ -316,10 +323,10 @@ If citations start landing on the wrong lines, suspect that before suspecting th
 **Choosing the reviewer model:**
 ```
 /pr-review-toolkit model:opus
-# All six on claude-opus-5
+# All six on the latest Claude Opus
 
 /pr-review-toolkit model:sol
-# All six on gpt-5.6-sol
+# All six on the latest GPT Sol
 
 /pr-review-toolkit model:opus,sol,gemini
 # Spread the six across three providers — findings raised by more than one
