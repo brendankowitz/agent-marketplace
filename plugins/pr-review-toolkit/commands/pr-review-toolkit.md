@@ -34,7 +34,7 @@ not theirs.
 | --- | --- |
 | `code-reviewer` | Project-guideline compliance and bugs (confidence-scored) |
 | `pr-test-analyzer` | Behavioral test coverage and gaps |
-| `comment-analyzer` | Comment accuracy and comment rot |
+| `comment-analyzer` | Comment accuracy, comment rot, and concise API documentation |
 | `silent-failure-hunter` | Swallowed errors and unjustified fallbacks |
 | `type-design-analyzer` | Type encapsulation and invariants |
 | `code-simplifier` | Simplifications, emitted as before/after patches |
@@ -74,7 +74,7 @@ If citations start landing on the wrong lines, suspect that before suspecting th
    silent-failure-hunter, **types** → type-design-analyzer, **code** → code-reviewer,
    **simplify** → code-simplifier.
 
-   - **comments** - Analyze code comment accuracy and maintainability
+   - **comments** - Analyze comment accuracy, maintainability, and concise API documentation
    - **tests** - Review test coverage quality and completeness
    - **errors** - Check error handling for silent failures
    - **types** - Analyze type design and invariants
@@ -363,6 +363,7 @@ If citations start landing on the wrong lines, suspect that before suspecting th
 - Verifies comment accuracy vs code
 - Identifies comment rot
 - Checks documentation completeness
+- Recommends concise, contract-focused class and method documentation
 
 **pr-test-analyzer**:
 - Reviews behavioral test coverage

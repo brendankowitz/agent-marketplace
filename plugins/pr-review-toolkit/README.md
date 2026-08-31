@@ -6,7 +6,7 @@ they analyze and report findings for the caller to consolidate, and none can edi
 - **code-reviewer** — general review against project guidelines, bug detection (confidence-scored, high signal)
 - **pr-test-analyzer** — behavioral test coverage and critical gaps (1–10 criticality)
 - **silent-failure-hunter** — swallowed errors, broad catch blocks, unjustified fallbacks
-- **comment-analyzer** — comment accuracy and comment rot
+- **comment-analyzer** — comment accuracy, comment rot, and concise .NET-style API documentation
 - **type-design-analyzer** — type encapsulation and invariant quality (1–10 per dimension)
 - **code-simplifier** — clarity and maintainability polish that preserves functionality, including removal of redundant null/type checks and other over-defensive code; emits before/after patches rather than applying them
 
