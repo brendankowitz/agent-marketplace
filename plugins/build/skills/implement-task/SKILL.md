@@ -17,16 +17,18 @@ Implement tasks using appropriate coding agents with continuous build verificati
 - Respect AGENTS.md (and Claude.md if it exists)
 - Use MCP servers to assist
 - Delegate to appropriate coding agents when possible:
-  - **Fast Coding Agent** (`haiku` / `gpt-5.6-luna`): Simple tasks, single-file edits
-  - **Coding Agent** (`sonnet` / `gpt-5.6-terra`): Medium complexity, multi-file changes
-  - **Complex Coding Agent** (`opus` / `gpt-5.6-sol`): High-complexity architectural work
-  - **Principal Coding Agent** (`fable` / `gpt-6-astra`): Whole-system reasoning, cross-cutting change, and escalation when a lower tier has failed - the slowest and most expensive tier, so do not reach for it by default
-  - **Bulk Reader** (`haiku`): Answering questions about files you do not need to edit, so their contents never enter your context
+  - **Fast Coding Agent** - simple tasks, single-file edits
+  - **Coding Agent** - medium complexity, multi-file changes
+  - **Complex Coding Agent** - high-complexity architectural work
+  - **Principal Coding Agent** - whole-system reasoning, cross-cutting change, and escalation when a lower tier has failed; the slowest and most expensive tier, so do not reach for it by default
+  - **Bulk Reader** - answering questions about files you do not need to edit, so their contents never enter your context
 
   Claude Code reads the tier off each agent's frontmatter, so dispatch by name and
-  the model follows. Copilot CLI does not accept those short aliases and errors on a
-  bare dispatch, so **name a Copilot model id at dispatch time** — that overrides the
-  frontmatter and selects the tier. See `implement-task-next` for the full tier table.
+  the model follows. Copilot CLI does not, and its failure modes are quiet: a bare
+  dispatch errors on the alias, and passing the Claude Code alias at dispatch time
+  silently runs a *different, larger* model. On Copilot, name the Copilot id —
+  `claude-haiku-4.5`, `claude-sonnet-5`, `claude-opus-5`, or the GPT tier ids in
+  `implement-task-next`, which carries the full table.
 - Spawn as many agents as needed, including using the fleet skill for parallel work
 - Always use modern language syntax when possible
 

@@ -115,12 +115,24 @@ expensive one.
 Tiers are the same four everywhere; only the models filling them change, and
 they change by *provider*, not by host:
 
-| Tier | Agent | Anthropic | GPT | Use for |
-|------|-------|-----------|-----|---------|
-| Fast | Fast Coding Agent | `haiku` @ high | `gpt-5.6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
-| Standard | Coding Agent | `sonnet` @ high | `gpt-5.6-terra` @ high | multi-file integration, pattern matching, debugging |
-| Deep | Complex Coding Agent | `opus` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
-| Principal | Principal Coding Agent | `fable` @ high | `gpt-6-astra` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
+| Tier | Agent | Anthropic (Claude Code / Copilot) | GPT | Use for |
+|------|-------|-----------------------------------|-----|---------|
+| Fast | Fast Coding Agent | `haiku` / `claude-haiku-4.5` @ high | `gpt-5.6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
+| Standard | Coding Agent | `sonnet` / `claude-sonnet-5` @ high | `gpt-5.6-terra` @ high | multi-file integration, pattern matching, debugging |
+| Deep | Complex Coding Agent | `opus` / `claude-opus-5` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
+| Principal | Principal Coding Agent | `fable` / *(none — see below)* @ high | `gpt-6-astra` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
+
+**The Anthropic column carries two spellings for one tier.** The first is the
+Claude Code alias, which its frontmatter already pins. The second is the Copilot
+id, which you must pass at dispatch time. They are not interchangeable, and
+getting it wrong is silent: passing `haiku` on Copilot does not error — it
+resolves to something else entirely (observed: it ran on `claude-sonnet-5`), so
+you lose the tier *and* the cost goes up rather than down. The GPT column needs
+no second spelling; those ids are Copilot's own.
+
+Copilot has no `fable` equivalent. For Principal there, use `gpt-6-astra`, or
+`claude-opus-5` if the run is pinned to the Anthropic column — and say which you
+substituted, because it is a tier below what Principal means on Claude Code.
 
 **Effort runs inverse to tier on the GPT column through Deep, and that is
 deliberate** — a smaller model thinking longer beats a larger one thinking less
@@ -146,7 +158,10 @@ the agents' frontmatter already pins the alias, which Claude Code honors.
 
 **Copilot CLI can run either.** It does honor per-agent `model:`, but not Claude
 Code's short aliases — an agent pinned to `haiku` fails to dispatch there — so
-naming the model **at dispatch time** is still the only thing that selects a tier. Infer the column from the session
+naming the model **at dispatch time**, in Copilot's own spelling, is the only
+thing that selects a tier. Both halves matter: the alias errors when it comes
+from frontmatter and silently resolves to the wrong model when it comes from a
+dispatch argument. Infer the column from the session
 model (`claude-*` → Anthropic, `gpt-*` → GPT), state which one you inferred, and
 give the user one chance to override before the first dispatch. Then record it
 in the ledger and never ask again. The line is `# models: <provider>
