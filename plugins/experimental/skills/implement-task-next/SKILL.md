@@ -3,7 +3,7 @@ name: implement-task-next
 description: >
   Implement tasks using appropriate coding agents with continuous build verification.
   Use when user provides a task to implement.
-  Delegates to Fast/Coding/Complex Coding agents by tier, tracks progress in a
+  Delegates to the levelled coding agents by tier, tracks progress in a
   compaction-proof ledger, and runs a bounded implement-build-test-review-fix loop.
 ---
 
@@ -112,34 +112,54 @@ Use the least capable tier that can do the job. **Always name the model
 explicitly** — omitting it inherits the session model, usually the most
 expensive one.
 
-Tiers are the same three everywhere; only the models filling them change, and
+Tiers are the same four everywhere; only the models filling them change, and
 they change by *provider*, not by host:
 
-| Tier | Agent | Anthropic | GPT | Use for |
-|------|-------|-----------|-----|---------|
-| Fast | Fast Coding Agent | `haiku` @ high | `gpt-5.6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
-| Standard | Coding Agent | `sonnet` @ high | `gpt-5.6-terra` @ high | multi-file integration, pattern matching, debugging |
-| Deep | Complex Coding Agent | `opus` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
+| Tier | Dispatch | Anthropic (Claude Code / Copilot) | GPT | Use for |
+|------|----------|-----------------------------------|-----|---------|
+| Fast | `build:fast-coding-agent` | `haiku` / `claude-haiku-4.5` @ high | `gpt-5.6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
+| Standard | `build:coding-agent` | `sonnet` / `claude-sonnet-5` @ high | `gpt-5.6-terra` @ high | multi-file integration, pattern matching, debugging |
+| Deep | `build:complex-coding-agent` | `opus` / `claude-opus-5` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
+| Principal | `build:principal-coding-agent` | `fable` / `claude-opus-5` @ high | `gpt-6-astra` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
 
-**Effort runs inverse to tier on the GPT column, and that is deliberate** — a
-smaller model thinking longer beats a larger one thinking less at comparable
-cost, so the tier is bought partly in reasoning rather than entirely in model
-size. The Anthropic column is flat high because that is simply the default worth
-using, not a tuning result.
+Dispatch the agent *and* name the model — on Copilot the frontmatter supplies
+neither. Use the host's own spelling: passing an alias on Copilot does not
+error, it silently runs a larger model. Copilot has no `fable`, so Principal
+there is `claude-opus-5`, or `gpt-6-astra` if the tier gap matters — say which.
+
+**Effort runs inverse to tier on the GPT column through Deep, and that is
+deliberate** — a smaller model thinking longer beats a larger one thinking less
+at comparable cost. The Anthropic column is flat high. Principal takes full
+effort on both columns: it is the tier reached once cost has stopped being the
+trade, so choose it deliberately.
 
 Effort is a *dispatch-time* argument, so it applies only where the host exposes
 one. Copilot CLI does, for both columns — pass it alongside the model. Claude
 Code has no per-subagent effort field, so there is nothing to pass and the tier
 does all the work. Do not substitute prompt incantations for the missing knob.
 
+### Reading without spending context
+
+`build:bulk-reader` (`haiku` / `mai-code-1.1-flash` — reading ignores the
+provider columns, it is just the cheapest) answers a question about a set of
+files and returns prose plus `path:line` refs, so the files fill its context
+instead of yours. Use it to understand code you are not about to change; its
+answer goes into the implementer's brief.
+
+Not for files an implementer is editing — those need exact content, read
+directly. Not worth the round-trip for one small file.
+
 ### Picking the column
 
 **Claude Code runs Anthropic models only**, so the column is decided for you and
 the agents' frontmatter already pins the alias, which Claude Code honors.
 
-**Copilot CLI can run either**, and it ignores that frontmatter — it routes
-delegated subagents to the session model, so naming the model **at dispatch
-time** is the only thing that selects a tier. Infer the column from the session
+**Copilot CLI can run either.** It does honor per-agent `model:`, but not Claude
+Code's short aliases — an agent pinned to `haiku` fails to dispatch there — so
+naming the model **at dispatch time**, in Copilot's own spelling, is the only
+thing that selects a tier. Both halves matter: the alias errors when it comes
+from frontmatter and silently resolves to the wrong model when it comes from a
+dispatch argument. Infer the column from the session
 model (`claude-*` → Anthropic, `gpt-*` → GPT), state which one you inferred, and
 give the user one chance to override before the first dispatch. Then record it
 in the ledger and never ask again. The line is `# models: <provider>
@@ -213,9 +233,11 @@ the ledger is the only place it survives.
    re-review of the fix diff.
    - Rounds 1-3: resume the same implementer with the findings verbatim
    - Rounds 4-5: fresh implementer, **one tier up**, told what was already tried.
-     Already at Deep? Keep the tier and dispatch a fresh implementer with a clean
-     context and an explicit account of what has been tried and ruled out — a
-     fresh context is the variable you have left.
+     Deep escalates to Principal — that is what Principal is for, and a repeated
+     failure at Deep is the signal it waits on. Already at Principal? Keep the
+     tier and dispatch a fresh implementer with a clean context and an explicit
+     account of what has been tried and ruled out — a fresh context is the
+     variable you have left.
    - At the cap: adjudicate each open finding — park it with a written ruling,
      or STOP and report BLOCKED if it's load-bearing. Silent discards forbidden.
 6. **Record & next** — append the round and completion lines to the ledger in

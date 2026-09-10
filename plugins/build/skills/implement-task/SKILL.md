@@ -17,9 +17,16 @@ Implement tasks using appropriate coding agents with continuous build verificati
 - Respect AGENTS.md (and Claude.md if it exists)
 - Use MCP servers to assist
 - Delegate to appropriate coding agents when possible:
-  - **Fast Coding Agent**: Simple tasks, single-file edits
-  - **Coding Agent**: Medium complexity, multi-file changes
-  - **Complex Coding Agent**: High-complexity architectural work
+  - `build:fast-coding-agent` - simple tasks, single-file edits
+  - `build:coding-agent` - medium complexity, multi-file changes
+  - `build:complex-coding-agent` - high-complexity architectural work
+  - `build:principal-coding-agent` - whole-system reasoning, cross-cutting change, and escalation when a lower tier has failed; the slowest and most expensive tier, so do not reach for it by default
+  - `build:bulk-reader` - questions about files you are *not* about to edit, so their contents never enter your context. Not for files being edited: those need exact content and line numbers.
+
+  Claude Code takes the tier from each agent's frontmatter. Copilot does not, and
+  fails quietly, so name a Copilot id there: `claude-haiku-4.5`, `claude-sonnet-5`,
+  `claude-opus-5`, `mai-code-1.1-flash` for bulk-reader. Full table in
+  `implement-task-next`.
 - Spawn as many agents as needed, including using the fleet skill for parallel work
 - Always use modern language syntax when possible
 
