@@ -11,7 +11,7 @@ manifests — the same approach as [superpowers](https://github.com/obra/superpo
 | `pr-review-toolkit` | 6 read-only PR review agents (code quality, test coverage, silent failures, comment accuracy, type design, simplification) + `/pr-review-toolkit` command that orchestrates them all. Ported from Anthropic's Claude Code [pr-review-toolkit](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/pr-review-toolkit). **Copilot CLI and Kimi Code only** — Claude Code users should use the upstream original. | Apache-2.0 |
 | `discover` | Start a feature right: `create-feature`, `create-investigation`, `reject-investigation` skills | BSD-3-Clause |
 | `decide` | `adr-analyzer` agent + `create-adr`, `accept-adr` skills | BSD-3-Clause |
-| `build` | Levelled coding agents (`fast-coding-agent` → `coding-agent` → `complex-coding-agent`) + `bulk-reader` (read-only file summarization) + `coding-philosophy`, `implement-task`, `engineer-mode` skills | BSD-3-Clause |
+| `build` | Levelled coding agents (`fast-coding-agent` → `coding-agent` → `complex-coding-agent` → `principal-coding-agent`) + `bulk-reader` (read-only file summarization) + `coding-philosophy`, `implement-task`, `engineer-mode` skills | BSD-3-Clause |
 | `review` | `well-architected-agent` + Well-Architected reviews (`wa-full-review`, `wa-security-review`, `wa-reliability-review`, `wa-performance-review`) + `technical-review` | BSD-3-Clause |
 | `document` | `documentation-agent`, `persona-agent` (models your style from agent-journal sessions) + `update-documentation`, `agent-journal` skills | BSD-3-Clause |
 | `experimental` | Staging area for in-development agents and skills. Unstable, changes without notice. Skills carry a `-next` suffix so they install alongside their stable counterparts. Current contents are listed in [plugins/experimental/README.md](plugins/experimental/README.md). | BSD-3-Clause |
@@ -93,18 +93,27 @@ After either install path, run `/reload` (or `/new`) to activate.
 - **Portable agent frontmatter.** Phase-plugin agents carry `name` + `description` only (no
   `tools:` platform dialect). The levelled coding agents additionally pin a model tier
   with Claude Code aliases — `fast-coding-agent` and `bulk-reader` → `haiku`,
-  `coding-agent` → `sonnet`, `complex-coding-agent` → `opus`.
+  `coding-agent` → `sonnet`, `complex-coding-agent` → `opus`,
+  `principal-coding-agent` → `fable`.
 
-  Copilot CLI **does** honor per-agent `model:` as of CLI 1.0.84-3 — verified against the
-  wire log, where a subagent pinned to `claude-haiku-4.5` ran on Haiku from a Sonnet
-  session. It does not recognize Claude Code's short aliases, so a plugin agent carrying
-  `model: haiku` falls back to the session model there rather than failing to load. Since
-  the two platforms share one file and no model string is valid on both, the aliases stay:
-  Claude Code gets the cheap tier, Copilot CLI keeps the context isolation but pays session
-  rates. Copilot users who want the cheap tier too can pin a Copilot model id locally —
-  `claude-haiku-4.5`, `gpt-5-mini`, or `gpt-5.6-luna`. Copilot CLI also accepts a YAML list
-  for `model:` and picks the first available id, but Claude Code's schema requires a plain
-  string, so a list breaks Claude Code and is not used here.
+  Copilot CLI **does** honor per-agent `model:` — observed on CLI 1.0.84-3, where a
+  subagent pinned to `claude-haiku-4.5` ran on Haiku from a `claude-sonnet-4.6` session
+  (confirmed in the wire log). What it does not accept is Claude Code's short aliases, and
+  an agent carrying one **fails to dispatch** rather than falling back — `Model 'haiku' is
+  not available`. All five agents above therefore work on Claude Code and not on Copilot
+  CLI today; see [#11](https://github.com/brendankowitz/agent-marketplace/issues/11).
+
+  The aliases stay for now because the platforms share one agent file and no single string
+  has been found that both accept: Claude Code takes short aliases or full Anthropic ids
+  (`claude-haiku-4-5-<date>`), Copilot takes its own spellings (`claude-haiku-4.5`,
+  `gpt-5-mini`, `gpt-5.6-luna`). That is a naming difference between independently
+  versioned products, not a schema rule — worth retesting if either changes id format,
+  because one shared id would give both platforms the cheap tier and make this compromise
+  unnecessary. Copilot CLI also accepts a YAML list for `model:` and picks the first
+  available id, but Claude Code's schema is a plain string, so a list is not an option.
+
+  Behaviour on unrecognized ids is undocumented by both vendors; the dispatch failure and
+  Claude Code's warn-and-keep-session-model fallback are both observed, not specified.
 
 ## Licensing
 

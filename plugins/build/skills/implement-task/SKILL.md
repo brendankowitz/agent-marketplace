@@ -17,9 +17,11 @@ Implement tasks using appropriate coding agents with continuous build verificati
 - Respect AGENTS.md (and Claude.md if it exists)
 - Use MCP servers to assist
 - Delegate to appropriate coding agents when possible:
-  - **Fast Coding Agent**: Simple tasks, single-file edits
-  - **Coding Agent**: Medium complexity, multi-file changes
-  - **Complex Coding Agent**: High-complexity architectural work
+  - **Fast Coding Agent** (`haiku` / `gpt-5.6-luna`): Simple tasks, single-file edits
+  - **Coding Agent** (`sonnet` / `gpt-5.6-terra`): Medium complexity, multi-file changes
+  - **Complex Coding Agent** (`opus` / `gpt-5.6-sol`): High-complexity architectural work
+  - **Principal Coding Agent** (`fable` / `gpt-6-astra`): Whole-system reasoning, cross-cutting change, and escalation when a lower tier has failed - the slowest and most expensive tier, so do not reach for it by default
+  - **Bulk Reader** (`haiku`): Answering questions about files you do not need to edit, so their contents never enter your context
 - Spawn as many agents as needed, including using the fleet skill for parallel work
 - Always use modern language syntax when possible
 

@@ -30,7 +30,7 @@ harmless.
 
 > Both statements above are inferred from how skills and agents appear in host
 > tool listings, not from platform documentation — unlike the `model:` behaviour
-> in the root README, which cites [copilot-cli#2939](https://github.com/github/copilot-cli/issues/2939).
+> in the root README, which is backed by observed CLI wire logs.
 > Confirm before relying on them. If skills turn out to be plugin-namespaced,
 > the `-next` suffix is unnecessary ceremony and promotion becomes a pure move.
 

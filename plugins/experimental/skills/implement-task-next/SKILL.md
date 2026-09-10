@@ -112,7 +112,7 @@ Use the least capable tier that can do the job. **Always name the model
 explicitly** — omitting it inherits the session model, usually the most
 expensive one.
 
-Tiers are the same three everywhere; only the models filling them change, and
+Tiers are the same four everywhere; only the models filling them change, and
 they change by *provider*, not by host:
 
 | Tier | Agent | Anthropic | GPT | Use for |
@@ -120,12 +120,19 @@ they change by *provider*, not by host:
 | Fast | Fast Coding Agent | `haiku` @ high | `gpt-5.6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
 | Standard | Coding Agent | `sonnet` @ high | `gpt-5.6-terra` @ high | multi-file integration, pattern matching, debugging |
 | Deep | Complex Coding Agent | `opus` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
+| Principal | Principal Coding Agent | `fable` @ high | `gpt-6-astra` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
 
-**Effort runs inverse to tier on the GPT column, and that is deliberate** — a
-smaller model thinking longer beats a larger one thinking less at comparable
-cost, so the tier is bought partly in reasoning rather than entirely in model
-size. The Anthropic column is flat high because that is simply the default worth
-using, not a tuning result.
+**Effort runs inverse to tier on the GPT column through Deep, and that is
+deliberate** — a smaller model thinking longer beats a larger one thinking less
+at comparable cost, so the tier is bought partly in reasoning rather than
+entirely in model size. The Anthropic column is flat high because that is simply
+the default worth using, not a tuning result.
+
+**Principal breaks that pattern on purpose.** The inverse rule is a
+cost-balancing trade, and Principal is the tier where cost stops being the
+trade: you reach for it when a lower tier has already burned turns and failed,
+so it takes the largest model *and* full effort. Reach for it deliberately, not
+as a default — it is the slowest and most expensive row in the table.
 
 Effort is a *dispatch-time* argument, so it applies only where the host exposes
 one. Copilot CLI does, for both columns — pass it alongside the model. Claude
@@ -137,9 +144,9 @@ does all the work. Do not substitute prompt incantations for the missing knob.
 **Claude Code runs Anthropic models only**, so the column is decided for you and
 the agents' frontmatter already pins the alias, which Claude Code honors.
 
-**Copilot CLI can run either**, and it ignores that frontmatter — it routes
-delegated subagents to the session model, so naming the model **at dispatch
-time** is the only thing that selects a tier. Infer the column from the session
+**Copilot CLI can run either.** It does honor per-agent `model:`, but not Claude
+Code's short aliases — an agent pinned to `haiku` fails to dispatch there — so
+naming the model **at dispatch time** is still the only thing that selects a tier. Infer the column from the session
 model (`claude-*` → Anthropic, `gpt-*` → GPT), state which one you inferred, and
 give the user one chance to override before the first dispatch. Then record it
 in the ledger and never ask again. The line is `# models: <provider>
