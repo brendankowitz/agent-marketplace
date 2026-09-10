@@ -21,7 +21,7 @@ Implement tasks using appropriate coding agents with continuous build verificati
   - `build:coding-agent` - medium complexity, multi-file changes
   - `build:complex-coding-agent` - high-complexity architectural work
   - `build:principal-coding-agent` - whole-system reasoning, cross-cutting change, and escalation when a lower tier has failed; the slowest and most expensive tier, so do not reach for it by default
-  - `build:bulk-reader` - answering questions about files you are *not* about to edit, so their contents never enter your context. Not for files an implementer is editing: those need exact content and line numbers.
+  - `build:bulk-reader` - answering questions about files you are *not* about to edit, so their contents never enter your context. Not for files an implementer is editing: those need exact content and line numbers. On Copilot dispatch it with `mai-code-1.1-flash`, which measured about a tenth the cost of `claude-haiku-4.5` on the same read.
 
   Claude Code reads the tier off each agent's frontmatter, so dispatch by name and
   the model follows. Copilot CLI does not, and its failure modes are quiet: a bare

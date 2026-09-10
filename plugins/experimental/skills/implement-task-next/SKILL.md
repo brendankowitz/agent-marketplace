@@ -160,9 +160,17 @@ does all the work. Do not substitute prompt incantations for the missing knob.
 
 ### Reading without spending context
 
-`build:bulk-reader` (`haiku` / `claude-haiku-4.5`) answers a question about a set
-of files and returns prose plus `path:line` references. The file contents stay in
-its context, so what lands in yours is an answer rather than the files.
+`build:bulk-reader` (`haiku` / `mai-code-1.1-flash`) answers a question about a
+set of files and returns prose plus `path:line` references. The file contents stay
+in its context, so what lands in yours is an answer rather than the files.
+
+**On Copilot this is the one dispatch that leaves the tier table's two columns.**
+Reading is not coding, so the provider split does not apply and the only thing
+that matters is cost per token read. Measured on one 800-line read, same prompt:
+`mai-code-1.1-flash` 0.42 credits, `gpt-5.6-luna` 0.77, `gpt-5-mini` 0.80,
+`claude-haiku-4.5` 4.07 — roughly a tenth of Haiku, and the fastest of the four.
+Single runs, so treat the ordering as reliable and the exact figures as
+indicative; re-measure if the model list changes.
 
 Dispatch it when you need to *understand* code you are not about to change —
 tracing how an existing subsystem works before writing task briefs, locating
