@@ -122,36 +122,16 @@ they change by *provider*, not by host:
 | Deep | `build:complex-coding-agent` | `opus` / `claude-opus-5` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
 | Principal | `build:principal-coding-agent` | `fable` / `claude-opus-5` @ high | `gpt-6-astra` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
 
-Dispatch the agent *and* name the model — the agent supplies the prompt, the
-model supplies the tier, and on Copilot the frontmatter will not supply it for
-you. The ids above assume the `build` plugin is installed under its own name;
-drop the prefix if the agents are loaded loose.
-
-**The Anthropic column carries two spellings for one tier.** The first is the
-Claude Code alias, which its frontmatter already pins. The second is the Copilot
-id, which you must pass at dispatch time. They are not interchangeable, and
-getting it wrong is silent: passing `haiku` on Copilot does not error — it
-resolves to something else entirely (observed: it ran on `claude-sonnet-5`), so
-you lose the tier *and* the cost goes up rather than down. The GPT column needs
-no second spelling; those ids are Copilot's own.
-
-Copilot has no `fable`, so Principal and Deep share `claude-opus-5` there. That
-is accepted for now, not an oversight: on Copilot the Anthropic column tops out
-at Opus, and Principal buys its extra depth from effort and from the agent's own
-escalation discipline rather than from a larger model. If the distinction matters
-for a given task, cross to `gpt-6-astra` instead — and say that you did.
+Dispatch the agent *and* name the model — on Copilot the frontmatter supplies
+neither. Use the host's own spelling: passing an alias on Copilot does not
+error, it silently runs a larger model. Copilot has no `fable`, so Principal
+there is `claude-opus-5`, or `gpt-6-astra` if the tier gap matters — say which.
 
 **Effort runs inverse to tier on the GPT column through Deep, and that is
 deliberate** — a smaller model thinking longer beats a larger one thinking less
-at comparable cost, so the tier is bought partly in reasoning rather than
-entirely in model size. The Anthropic column is flat high because that is simply
-the default worth using, not a tuning result.
-
-**Principal breaks that pattern on purpose.** The inverse rule is a
-cost-balancing trade, and Principal is the tier where cost stops being the
-trade: you reach for it when a lower tier has already burned turns and failed,
-so it takes the largest model *and* full effort. Reach for it deliberately, not
-as a default — it is the slowest and most expensive row in the table.
+at comparable cost. The Anthropic column is flat high. Principal takes full
+effort on both columns: it is the tier reached once cost has stopped being the
+trade, so choose it deliberately.
 
 Effort is a *dispatch-time* argument, so it applies only where the host exposes
 one. Copilot CLI does, for both columns — pass it alongside the model. Claude
@@ -160,26 +140,14 @@ does all the work. Do not substitute prompt incantations for the missing knob.
 
 ### Reading without spending context
 
-`build:bulk-reader` (`haiku` / `mai-code-1.1-flash`) answers a question about a
-set of files and returns prose plus `path:line` references. The file contents stay
-in its context, so what lands in yours is an answer rather than the files.
+`build:bulk-reader` (`haiku` / `mai-code-1.1-flash` — reading ignores the
+provider columns, it is just the cheapest) answers a question about a set of
+files and returns prose plus `path:line` refs, so the files fill its context
+instead of yours. Use it to understand code you are not about to change; its
+answer goes into the implementer's brief.
 
-**On Copilot this is the one dispatch that leaves the tier table's two columns.**
-Reading is not coding, so the provider split does not apply and the only thing
-that matters is cost per token read. Measured on one 800-line read, same prompt:
-`mai-code-1.1-flash` 0.42 credits, `gpt-5.6-luna` 0.77, `gpt-5-mini` 0.80,
-`claude-haiku-4.5` 4.07 — roughly a tenth of Haiku, and the fastest of the four.
-Single runs, so treat the ordering as reliable and the exact figures as
-indicative; re-measure if the model list changes.
-
-Dispatch it when you need to *understand* code you are not about to change —
-tracing how an existing subsystem works before writing task briefs, locating
-where a convention is defined, checking whether an interface already exists.
-Its answer is what you paste into an implementer's brief.
-
-Do not use it for the files an implementer is about to edit. Those need exact
-content and exact line numbers, and the implementer must read them itself. It is
-also not worth the round-trip for a single small file you could read directly.
+Not for files an implementer is editing — those need exact content, read
+directly. Not worth the round-trip for one small file.
 
 ### Picking the column
 
