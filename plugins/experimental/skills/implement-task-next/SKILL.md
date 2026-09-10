@@ -120,7 +120,7 @@ they change by *provider*, not by host:
 | Fast | Fast Coding Agent | `haiku` / `claude-haiku-4.5` @ high | `gpt-5.6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
 | Standard | Coding Agent | `sonnet` / `claude-sonnet-5` @ high | `gpt-5.6-terra` @ high | multi-file integration, pattern matching, debugging |
 | Deep | Complex Coding Agent | `opus` / `claude-opus-5` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
-| Principal | Principal Coding Agent | `fable` / *(none — see below)* @ high | `gpt-6-astra` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
+| Principal | Principal Coding Agent | `fable` / `claude-opus-5` @ high | `gpt-6-astra` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
 
 **The Anthropic column carries two spellings for one tier.** The first is the
 Claude Code alias, which its frontmatter already pins. The second is the Copilot
@@ -130,9 +130,11 @@ resolves to something else entirely (observed: it ran on `claude-sonnet-5`), so
 you lose the tier *and* the cost goes up rather than down. The GPT column needs
 no second spelling; those ids are Copilot's own.
 
-Copilot has no `fable` equivalent. For Principal there, use `gpt-6-astra`, or
-`claude-opus-5` if the run is pinned to the Anthropic column — and say which you
-substituted, because it is a tier below what Principal means on Claude Code.
+Copilot has no `fable`, so Principal and Deep share `claude-opus-5` there. That
+is accepted for now, not an oversight: on Copilot the Anthropic column tops out
+at Opus, and Principal buys its extra depth from effort and from the agent's own
+escalation discipline rather than from a larger model. If the distinction matters
+for a given task, cross to `gpt-6-astra` instead — and say that you did.
 
 **Effort runs inverse to tier on the GPT column through Deep, and that is
 deliberate** — a smaller model thinking longer beats a larger one thinking less
