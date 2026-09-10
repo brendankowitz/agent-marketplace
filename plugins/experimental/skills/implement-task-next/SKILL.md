@@ -3,7 +3,7 @@ name: implement-task-next
 description: >
   Implement tasks using appropriate coding agents with continuous build verification.
   Use when user provides a task to implement.
-  Delegates to Fast/Coding/Complex Coding agents by tier, tracks progress in a
+  Delegates to the levelled coding agents by tier, tracks progress in a
   compaction-proof ledger, and runs a bounded implement-build-test-review-fix loop.
 ---
 
@@ -115,12 +115,17 @@ expensive one.
 Tiers are the same four everywhere; only the models filling them change, and
 they change by *provider*, not by host:
 
-| Tier | Agent | Anthropic (Claude Code / Copilot) | GPT | Use for |
-|------|-------|-----------------------------------|-----|---------|
-| Fast | Fast Coding Agent | `haiku` / `claude-haiku-4.5` @ high | `gpt-5.6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
-| Standard | Coding Agent | `sonnet` / `claude-sonnet-5` @ high | `gpt-5.6-terra` @ high | multi-file integration, pattern matching, debugging |
-| Deep | Complex Coding Agent | `opus` / `claude-opus-5` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
-| Principal | Principal Coding Agent | `fable` / `claude-opus-5` @ high | `gpt-6-astra` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
+| Tier | Dispatch | Anthropic (Claude Code / Copilot) | GPT | Use for |
+|------|----------|-----------------------------------|-----|---------|
+| Fast | `build:fast-coding-agent` | `haiku` / `claude-haiku-4.5` @ high | `gpt-5.6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
+| Standard | `build:coding-agent` | `sonnet` / `claude-sonnet-5` @ high | `gpt-5.6-terra` @ high | multi-file integration, pattern matching, debugging |
+| Deep | `build:complex-coding-agent` | `opus` / `claude-opus-5` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
+| Principal | `build:principal-coding-agent` | `fable` / `claude-opus-5` @ high | `gpt-6-astra` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
+
+Dispatch the agent *and* name the model — the agent supplies the prompt, the
+model supplies the tier, and on Copilot the frontmatter will not supply it for
+you. The ids above assume the `build` plugin is installed under its own name;
+drop the prefix if the agents are loaded loose.
 
 **The Anthropic column carries two spellings for one tier.** The first is the
 Claude Code alias, which its frontmatter already pins. The second is the Copilot
@@ -152,6 +157,21 @@ Effort is a *dispatch-time* argument, so it applies only where the host exposes
 one. Copilot CLI does, for both columns — pass it alongside the model. Claude
 Code has no per-subagent effort field, so there is nothing to pass and the tier
 does all the work. Do not substitute prompt incantations for the missing knob.
+
+### Reading without spending context
+
+`build:bulk-reader` (`haiku` / `claude-haiku-4.5`) answers a question about a set
+of files and returns prose plus `path:line` references. The file contents stay in
+its context, so what lands in yours is an answer rather than the files.
+
+Dispatch it when you need to *understand* code you are not about to change —
+tracing how an existing subsystem works before writing task briefs, locating
+where a convention is defined, checking whether an interface already exists.
+Its answer is what you paste into an implementer's brief.
+
+Do not use it for the files an implementer is about to edit. Those need exact
+content and exact line numbers, and the implementer must read them itself. It is
+also not worth the round-trip for a single small file you could read directly.
 
 ### Picking the column
 
@@ -237,9 +257,11 @@ the ledger is the only place it survives.
    re-review of the fix diff.
    - Rounds 1-3: resume the same implementer with the findings verbatim
    - Rounds 4-5: fresh implementer, **one tier up**, told what was already tried.
-     Already at Deep? Keep the tier and dispatch a fresh implementer with a clean
-     context and an explicit account of what has been tried and ruled out — a
-     fresh context is the variable you have left.
+     Deep escalates to Principal — that is what Principal is for, and a repeated
+     failure at Deep is the signal it waits on. Already at Principal? Keep the
+     tier and dispatch a fresh implementer with a clean context and an explicit
+     account of what has been tried and ruled out — a fresh context is the
+     variable you have left.
    - At the cap: adjudicate each open finding — park it with a written ruling,
      or STOP and report BLOCKED if it's load-bearing. Silent discards forbidden.
 6. **Record & next** — append the round and completion lines to the ledger in

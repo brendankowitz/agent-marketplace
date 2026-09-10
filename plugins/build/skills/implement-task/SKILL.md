@@ -17,11 +17,11 @@ Implement tasks using appropriate coding agents with continuous build verificati
 - Respect AGENTS.md (and Claude.md if it exists)
 - Use MCP servers to assist
 - Delegate to appropriate coding agents when possible:
-  - **Fast Coding Agent** - simple tasks, single-file edits
-  - **Coding Agent** - medium complexity, multi-file changes
-  - **Complex Coding Agent** - high-complexity architectural work
-  - **Principal Coding Agent** - whole-system reasoning, cross-cutting change, and escalation when a lower tier has failed; the slowest and most expensive tier, so do not reach for it by default
-  - **Bulk Reader** - answering questions about files you do not need to edit, so their contents never enter your context
+  - `build:fast-coding-agent` - simple tasks, single-file edits
+  - `build:coding-agent` - medium complexity, multi-file changes
+  - `build:complex-coding-agent` - high-complexity architectural work
+  - `build:principal-coding-agent` - whole-system reasoning, cross-cutting change, and escalation when a lower tier has failed; the slowest and most expensive tier, so do not reach for it by default
+  - `build:bulk-reader` - answering questions about files you are *not* about to edit, so their contents never enter your context. Not for files an implementer is editing: those need exact content and line numbers.
 
   Claude Code reads the tier off each agent's frontmatter, so dispatch by name and
   the model follows. Copilot CLI does not, and its failure modes are quiet: a bare
