@@ -100,8 +100,11 @@ After either install path, run `/reload` (or `/new`) to activate.
   subagent pinned to `claude-haiku-4.5` ran on Haiku from a `claude-sonnet-4.6` session
   (confirmed in the wire log). What it does not accept is Claude Code's short aliases, and
   an agent carrying one **fails to dispatch** rather than falling back — `Model 'haiku' is
-  not available`. All five agents above therefore work on Claude Code and not on Copilot
-  CLI today; see [#11](https://github.com/brendankowitz/agent-marketplace/issues/11).
+  not available`. That bites only a *bare* dispatch: naming a Copilot model id at dispatch
+  time overrides the frontmatter and runs the agent on that model, which is what the
+  `implement-task` skills tell the orchestrator to do. So the five agents above get their
+  tier for free on Claude Code, and on Copilot CLI the tier has to be named by the caller.
+  See [#11](https://github.com/brendankowitz/agent-marketplace/issues/11).
 
   The aliases stay for now because the platforms share one agent file and no single string
   has been found that both accept: Claude Code takes short aliases or full Anthropic ids

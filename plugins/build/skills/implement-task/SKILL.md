@@ -22,6 +22,11 @@ Implement tasks using appropriate coding agents with continuous build verificati
   - **Complex Coding Agent** (`opus` / `gpt-5.6-sol`): High-complexity architectural work
   - **Principal Coding Agent** (`fable` / `gpt-6-astra`): Whole-system reasoning, cross-cutting change, and escalation when a lower tier has failed - the slowest and most expensive tier, so do not reach for it by default
   - **Bulk Reader** (`haiku`): Answering questions about files you do not need to edit, so their contents never enter your context
+
+  Claude Code reads the tier off each agent's frontmatter, so dispatch by name and
+  the model follows. Copilot CLI does not accept those short aliases and errors on a
+  bare dispatch, so **name a Copilot model id at dispatch time** — that overrides the
+  frontmatter and selects the tier. See `implement-task-next` for the full tier table.
 - Spawn as many agents as needed, including using the fleet skill for parallel work
 - Always use modern language syntax when possible
 
