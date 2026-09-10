@@ -10,8 +10,8 @@
   "plugins": [
     {
       "name": "pr-review-toolkit",
-      "description": "Six read-only PR review agents (code quality, test coverage, silent failures, comment accuracy, type design, simplification) plus a /pr-review-toolkit command that orchestrates them all. Ported from Anthropic's Claude Code pr-review-toolkit (Apache-2.0).",
-      "version": "1.1.2",
+      "description": "Six read-only PR review agents (code quality, test coverage, silent failures, concise API documentation, type design, simplification) plus a /pr-review-toolkit command that orchestrates them all. Ported from Anthropic's Claude Code pr-review-toolkit (Apache-2.0).",
+      "version": "1.1.3",
       "source": "./plugins/pr-review-toolkit"
     },
     {
