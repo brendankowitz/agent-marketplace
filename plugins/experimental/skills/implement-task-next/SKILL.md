@@ -143,11 +143,15 @@ does all the work. Do not substitute prompt incantations for the missing knob.
 `build:bulk-reader` (`haiku` / `mai-code-1.1-flash` — reading ignores the
 provider columns, it is just the cheapest) answers a question about a set of
 files and returns prose plus `path:line` refs, so the files fill its context
-instead of yours. Use it to understand code you are not about to change; its
-answer goes into the implementer's brief.
+instead of yours. **Both the primary coordinator and delegated implementers
+may use it** to understand code they are not about to change. The coordinator
+puts relevant findings in the implementer's brief; an implementer can ask the
+reader directly for additional context. Give it a bounded question and file
+paths, then use its cited answer instead of loading the same files yourself.
 
 Not for files an implementer is editing — those need exact content, read
-directly. Not worth the round-trip for one small file.
+directly. Not worth the round-trip for one small file. The reader supplies
+facts, not implementation, debugging decisions, or architectural judgment.
 
 ### Picking the column
 
@@ -207,14 +211,21 @@ the ledger is the only place it survives.
    dispatch. If a report comes back without one, treat it as
    `DONE_WITH_CONCERNS` and read it closely rather than guessing.
 
-   **Tell it to do the work itself and not sub-delegate.** The levelled coding
-   agents are independently instructed to fan out to other agents in parallel,
-   which is right when a user drives them directly and wrong inside this loop —
-   it puts code you did not dispatch into the review diff, breaks the
-   one-implementer-per-file rule a level down where you cannot see it, and
-   escapes the tier you chose. If a task genuinely needs splitting, that is your
-   call to make: end the dispatch and split it into sub-tasks with their own
-   ledger lines. Parallelism belongs to you, not to the implementer.
+   **Include this ownership and reading contract in the dispatch:**
+
+   > Implement the task yourself: keep code changes and implementation
+   > decisions with you, without delegating them to other agents. You may call
+   > `build:bulk-reader` for read-only questions about files you will not edit;
+   > provide a bounded question and paths, and use its cited summary. Read files
+   > you edit directly. If implementation needs splitting, report that to the
+   > coordinator.
+
+   This keeps unplanned code changes out of the review diff, preserves
+   one implementer per file, and keeps implementation at the chosen tier.
+   Read-only bulk-reader calls do not transfer implementation ownership.
+   If a task genuinely needs splitting, end the dispatch and split it into
+   sub-tasks with their own ledger lines. Implementation parallelism belongs
+   to the coordinator; read-only context gathering is available to both.
 2. **Build & Test** — the implementer runs the tests covering its change and
    reports the command and its output.
 3. **Handle the report:**

@@ -21,7 +21,6 @@ Implement tasks using appropriate coding agents with continuous build verificati
   - `build:coding-agent` - medium complexity, multi-file changes
   - `build:complex-coding-agent` - high-complexity architectural work
   - `build:principal-coding-agent` - whole-system reasoning, cross-cutting change, and escalation when a lower tier has failed; the slowest and most expensive tier, so do not reach for it by default
-  - `build:bulk-reader` - questions about files you are *not* about to edit, so their contents never enter your context. Not for files being edited: those need exact content and line numbers.
 
   Claude Code takes the tier from each agent's frontmatter. Copilot does not, and
   fails quietly, so name a Copilot id there: `claude-haiku-4.5`, `claude-sonnet-5`,
@@ -29,6 +28,19 @@ Implement tasks using appropriate coding agents with continuous build verificati
   `implement-task-next`.
 - Spawn as many agents as needed, including using the fleet skill for parallel work
 - Always use modern language syntax when possible
+
+## Reading without spending context
+
+Both the primary context and delegated coding agents may use `build:bulk-reader`
+for read-only questions about files they are not about to edit. Give it a bounded
+question and file paths; use its concise answer and `path:line` references instead
+of loading those files into the caller's context. Read files being edited directly
+for exact content and line numbers. Read a single small file directly as well.
+
+When dispatching an implementer that must own its code changes, explicitly permit
+bulk-reader calls for this read-only context gathering. Restrict delegation of
+implementation work, not reading assistance; the implementer still owns code
+changes, debugging decisions, and architectural judgment.
 
 ## Iteration Loop
 
