@@ -24,7 +24,7 @@ Implement tasks using appropriate coding agents with continuous build verificati
 
   Claude Code takes the tier from each agent's frontmatter. Copilot does not, and
   fails quietly, so name a Copilot id there: `claude-haiku-4.5`, `claude-sonnet-5`,
-  `claude-opus-5`, `mai-code-1.1-flash` for bulk-reader. Full table in
+  `claude-opus-5.5`, `mai-code-1.1-flash` for bulk-reader. Full table in
   `implement-task-next`.
 - Spawn as many agents as needed, including using the fleet skill for parallel work
 - Always use modern language syntax when possible
