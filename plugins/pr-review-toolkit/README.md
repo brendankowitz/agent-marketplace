@@ -20,8 +20,8 @@ all six agents as subagents on the model or mixture you choose, and then owns th
 individual agent can do: consolidating the reports into one deduplicated list, independently
 verifying the findings before acting on them, and orchestrating the fixes.
 
-Reviewer models are selectable — `model:opus`, `model:sonnet`, `model:sol`, `model:terra`,
-`model:gemini`, or a mixture like `model:opus,sol,gemini`. This matters because Copilot CLI ignores
+Reviewer models are selectable — `model:opus`, `model:sonnet`, `model:astra`, `model:sol`,
+`model:mai`, `model:gemini`, or a mixture like `model:opus,astra,gemini`. This matters because Copilot CLI ignores
 the `model:` field in agent frontmatter and routes delegated subagents to the session model, so
 without naming one you get six reviewers sharing a single model's blind spots. Findings raised
 independently by more than one provider are weighted above findings raised repeatedly by one, and
