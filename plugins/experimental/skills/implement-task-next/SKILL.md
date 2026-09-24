@@ -117,15 +117,15 @@ they change by *provider*, not by host:
 
 | Tier | Dispatch | Anthropic (Claude Code / Copilot) | GPT | Use for |
 |------|----------|-----------------------------------|-----|---------|
-| Fast | `build:fast-coding-agent` | `haiku` / `claude-haiku-4.5` @ high | `gpt-5.6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
-| Standard | `build:coding-agent` | `sonnet` / `claude-sonnet-5` @ high | `gpt-5.6-terra` @ high | multi-file integration, pattern matching, debugging |
-| Deep | `build:complex-coding-agent` | `opus` / `claude-opus-5.5` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
-| Principal | `build:principal-coding-agent` | `fable` / `claude-opus-5.5` @ high | `gpt-6-astra` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
+| Fast | `build:fast-coding-agent` | `haiku` / `claude-haiku-4.5` @ high | `gpt-6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
+| Standard | `build:coding-agent` | `sonnet` / `claude-sonnet-5` @ high | `gpt-6-terra` @ high | multi-file integration, pattern matching, debugging |
+| Deep | `build:complex-coding-agent` | `opus` / `claude-opus-5.5` @ high | `gpt-6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
+| Principal | `build:principal-coding-agent` | `fable` / `claude-opus-5.5` @ high | `gpt-6-sol` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
 
 Dispatch the agent *and* name the model — on Copilot the frontmatter supplies
 neither. Use the host's own spelling: passing an alias on Copilot does not
 error, it silently runs a larger model. Copilot has no `fable`, so Principal
-there is `claude-opus-5.5`, or `gpt-6-astra` if the tier gap matters — say which.
+there is `claude-opus-5.5`, or `gpt-6-sol` if the tier gap matters — say which.
 
 **Effort runs inverse to tier on the GPT column through Deep, and that is
 deliberate** — a smaller model thinking longer beats a larger one thinking less
