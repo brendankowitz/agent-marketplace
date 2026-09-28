@@ -111,9 +111,10 @@ If citations start landing on the wrong lines, suspect that before suspecting th
    |-------|--------|----------|
    | `opus` | latest Claude Opus | Anthropic (default) |
    | `sonnet` | latest Claude Sonnet | Anthropic |
-   | `sol` | latest GPT Sol | OpenAI (default) |
-   | `terra` | latest GPT Terra | OpenAI |
-   | `gemini` | latest Gemini Pro | Google (default) |
+   | `astra` | latest GPT Astra | OpenAI (default) |
+   | `sol` | latest GPT Sol | OpenAI |
+   | `mai` | latest MAI Code Flash | Microsoft |
+   | `gemini` | latest Gemini | Google (default) |
 
    If a family has no model available in this session, say so and offer the ones that do — don't
    silently substitute a different family.
@@ -132,21 +133,21 @@ If citations start landing on the wrong lines, suspect that before suspecting th
    report that still claims a mixture would invent cross-model agreement that never happened.
 
    **If the user passed `model:`** — honor it and don't ask. One name runs every agent on that
-   model (`model:sol`). Several names spread the agents across them, assigned round-robin in the
-   order they are listed under "Launch Review Agents" (`model:opus,sol,gemini`).
+   model (`model:astra`). Several names spread the agents across them, assigned round-robin in the
+   order they are listed under "Launch Review Agents" (`model:opus,astra,gemini`).
 
    **If a name isn't in the table** — don't dispatch it. Say which name you didn't recognize, show
    the alias list, and ask. Silently passing an unknown string produces a failed dispatch that is
    easy to mistake for a completed review.
 
    **If the user passed no `model:` modifier** — pick the default alias for the session model's
-   provider (`claude-*` → `opus`, `gpt-*` → `sol`, `gemini-*` → `gemini`), then ask **once**,
-   before the first dispatch:
+   provider (`claude-*` → `opus`, `gpt-*` → `astra`, `mai-code-*` → `mai`, `gemini-*` → `gemini`),
+   then ask **once**, before the first dispatch:
 
    ```
    Reviewing with <default alias> (inferred from your session model).
-   Use that, or pick another: opus / sonnet / sol / terra / gemini,
-   or a mixture like opus,sol.
+   Use that, or pick another: opus / sonnet / astra / sol / mai / gemini,
+   or a mixture like opus,astra.
    ```
 
    If the session model matches none of those prefixes, don't guess — say so and offer the full
@@ -325,10 +326,10 @@ If citations start landing on the wrong lines, suspect that before suspecting th
 /pr-review-toolkit model:opus
 # All six on the latest Claude Opus
 
-/pr-review-toolkit model:sol
-# All six on the latest GPT Sol
+/pr-review-toolkit model:astra
+# All six on the latest GPT Astra
 
-/pr-review-toolkit model:opus,sol,gemini
+/pr-review-toolkit model:opus,astra,gemini
 # Spread the six across three providers — findings raised by more than one
 # provider carry more weight in consolidation
 ```
@@ -397,7 +398,7 @@ If citations start landing on the wrong lines, suspect that before suspecting th
 
 - **Run early**: Before creating PR, not after
 - **Focus on changes**: Agents analyze git diff by default
-- **Mix models on risky diffs**: `model:opus,sol,gemini` — reviewers on different models fail
+- **Mix models on risky diffs**: `model:opus,astra,gemini` — reviewers on different models fail
   differently, and cross-provider agreement is the strongest confidence signal available
 - **Address critical first**: The fix phase defaults to critical + important, in that order
 - **Use `report-only`**: When you want the findings without the tree being touched
