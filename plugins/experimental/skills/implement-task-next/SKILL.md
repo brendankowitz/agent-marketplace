@@ -117,9 +117,9 @@ they change by *provider*, not by host:
 
 | Tier | Dispatch | Anthropic (Claude Code / Copilot) | GPT | Use for |
 |------|----------|-----------------------------------|-----|---------|
-| Fast | `build:fast-coding-agent` | `haiku` / `claude-haiku-4.5` @ high | `gpt-5.6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
-| Standard | `build:coding-agent` | `sonnet` / `claude-sonnet-5` @ high | `gpt-5.6-terra` @ high | multi-file integration, pattern matching, debugging |
-| Deep | `build:complex-coding-agent` | `opus` / `claude-opus-5.5` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
+| Fast | `build:fast-coding-agent` | `haiku` / `claude-haiku-4.5` @ high | `gpt-6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
+| Standard | `build:coding-agent` | `sonnet` / `claude-sonnet-5` @ high | `gpt-6-terra` @ high | multi-file integration, pattern matching, debugging |
+| Deep | `build:complex-coding-agent` | `opus` / `claude-opus-5.5` @ high | `gpt-6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
 | Principal | `build:principal-coding-agent` | `fable` / `claude-opus-5.5` @ high | `gpt-6-astra` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
 
 Dispatch the agent *and* name the model — on Copilot the frontmatter supplies
