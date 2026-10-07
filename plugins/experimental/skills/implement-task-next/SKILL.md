@@ -58,6 +58,7 @@ tell you which model column the run committed to:
 ```
 # ledger — task: <task description or plan file path>
 # models: anthropic (inferred)
+# resolved: fast=haiku, standard=sonnet, deep=opus, principal=fable
 ```
 
 See [Model Selection](#model-selection) for what goes on the `models:` line.
@@ -115,17 +116,34 @@ expensive one.
 Tiers are the same four everywhere; only the models filling them change, and
 they change by *provider*, not by host:
 
-| Tier | Dispatch | Anthropic (Claude Code / Copilot) | GPT | Use for |
-|------|----------|-----------------------------------|-----|---------|
-| Fast | `build:fast-coding-agent` | `haiku` / `claude-haiku-4.5` @ high | `gpt-5.6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
-| Standard | `build:coding-agent` | `sonnet` / `claude-sonnet-5` @ high | `gpt-5.6-terra` @ high | multi-file integration, pattern matching, debugging |
-| Deep | `build:complex-coding-agent` | `opus` / `claude-opus-5.5` @ high | `gpt-5.6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
-| Principal | `build:principal-coding-agent` | `fable` / `claude-opus-5.5` @ high | `gpt-6-astra` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
+| Tier | Dispatch | Anthropic | GPT | Use for |
+|------|----------|-----------|-----|---------|
+| Fast | `build:fast-coding-agent` | Haiku latest @ high | Luna latest @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
+| Standard | `build:coding-agent` | Sonnet latest @ high | Terra latest @ high | multi-file integration, pattern matching, debugging |
+| Deep | `build:complex-coding-agent` | Opus latest @ high | Sol latest @ medium | architecture, design judgment, broad codebase reasoning |
+| Principal | `build:principal-coding-agent` | Fable latest (Opus latest where the host has no Fable) @ high | Astra latest @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
 
-Dispatch the agent *and* name the model — on Copilot the frontmatter supplies
-neither. Use the host's own spelling: passing an alias on Copilot does not
-error, it silently runs a larger model. Copilot has no `fable`, so Principal
-there is `claude-opus-5.5`, or `gpt-6-astra` if the tier gap matters — say which.
+The table names model **families**, not ids, so it does not go stale when a new
+model ships. **Resolve "latest" in the host, at dispatch time:**
+
+- **Claude Code:** pass the family alias (`haiku`, `sonnet`, `opus`, `fable`).
+  Claude Code maps it to its current model for that family, and the agents'
+  frontmatter already names the alias.
+- **Copilot CLI:** name an exact id at dispatch, chosen from the host's own
+  model list (the dispatch tool's model choices or `/model`): the newest member
+  of the family, e.g. the highest `claude-opus-*` or `gpt-*-sol`. Compare
+  version numbers numerically (`5.10` is newer than `5.9`), and prefer the plain
+  id over variants (`-preview`, `-fast`, `-mini`, `-1m`) unless the tier calls
+  for one. **Never pass the family word itself:** a frontmatter alias fails to
+  dispatch on Copilot, and a dispatch-time alias does not select the tier (see
+  [Picking the column](#picking-the-column)). If the list has no member of a
+  family, use the fallback the table names and say which you chose.
+
+Resolve all four tiers once, when the run starts, and record them in the
+ledger header (below), so a resumed run reuses the same ids instead of
+re-resolving to a model that shipped mid-run. On Claude Code, record the
+aliases themselves: the host maps them, so the pin only holds on hosts that
+take exact ids.
 
 **Effort runs inverse to tier on the GPT column through Deep, and that is
 deliberate** — a smaller model thinking longer beats a larger one thinking less
@@ -140,8 +158,9 @@ does all the work. Do not substitute prompt incantations for the missing knob.
 
 ### Reading without spending context
 
-`build:bulk-reader` (`haiku` / `mai-code-1.1-flash` — reading ignores the
-provider columns, it is just the cheapest) answers a question about a set of
+`build:bulk-reader` runs on the cheapest fast reader the host offers (Haiku via
+its frontmatter on Claude Code, the newest `mai-code-*-flash` named at dispatch
+on Copilot; reading ignores the provider columns). It answers a question about a set of
 files and returns prose plus `path:line` refs, so the files fill its context
 instead of yours. **Both the primary coordinator and delegated implementers
 may use it** to understand code they are not about to change. The coordinator
@@ -167,16 +186,20 @@ dispatch argument. Infer the column from the session
 model (`claude-*` → Anthropic, `gpt-*` → GPT), state which one you inferred, and
 give the user one chance to override before the first dispatch. Then record it
 in the ledger and never ask again. The line is `# models: <provider>
-(inferred|confirmed)` — one provider, one qualifier:
+(inferred|confirmed)` — one provider, one qualifier. Below it, written at the
+same time, a `# resolved:` line records all four tiers:
 
 ```
 # ledger — task: <task description or plan file path>
 # models: gpt (confirmed)
+# resolved: fast=<id>, standard=<id>, deep=<id>, principal=<id>
 ```
 
-A run that resumes after compaction reads the column off that line rather than
-re-asking. If the line is missing on resume, re-infer and append it — do not
-interrupt a run in progress to ask.
+A run that resumes after compaction reads the column and the resolved ids off
+those lines rather than re-asking or re-resolving. If either line is missing on
+resume, re-infer or re-resolve, append it as a header-format line (the last
+`# models:` / `# resolved:` line wins), and carry on — do not interrupt a run in
+progress to ask.
 
 **Turn count beats token price.** The cheapest tier routinely takes 2-3× the
 turns on multi-step work, costing more overall. Standard is the *floor* for

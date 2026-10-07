@@ -15,6 +15,7 @@ claude plugin install experimental@agent-marketplace
 | Skill | Successor to | What is being tried |
 |---|---|---|
 | `implement-task-next` | `build:implement-task` | A compaction-proof ledger under `./agent-working/`, model tiers split by provider (Anthropic / GPT) with per-tier reasoning effort, a bounded fix loop with tier escalation, and a status contract for implementers. |
+| `multi-agent-pr-next` | — (new) | A protocol for two or more agents fixing one issue on one PR through GitHub comments alone, with a kickoff prompt per agent. Pairs with `implement-task-next`. See its SKILL.md. |
 
 ## Conventions
 
