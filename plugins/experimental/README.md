@@ -15,6 +15,7 @@ claude plugin install experimental@agent-marketplace
 | Skill | Successor to | What is being tried |
 |---|---|---|
 | `implement-task-next` | `build:implement-task` | A compaction-proof ledger under `./agent-working/`, model tiers split by provider (Anthropic / GPT) with per-tier reasoning effort, a bounded fix loop with tier escalation, and a status contract for implementers. |
+| `multi-agent-pr-next` | — (new) | Two or more agents, often on separate machines and posting as one GitHub account, fixing one issue on one PR through comments alone: owner-login trust boundary, file-owned split on a shared branch, reproduce-before-fix, cross-review with LGTM at a SHA, a single owner of full validation, a silent-partner protocol that accounts for unpushed work, and follow-up issues for split-out findings. Includes a kickoff prompt for each agent. |
 
 ## Conventions
 
