@@ -20,7 +20,7 @@ and branch, adopt it; otherwise propose one.
 Implement your owned findings with the implement-task-next skill.
 
 [This machine is the fastest: you own the full validation set.]   ← one agent only
-[Escalate hard technical decisions to <stronger model>.]
+[Escalate hard technical decisions to <Fable latest | Astra latest>; let the host resolve "latest".]
 
 Check the issue and PR every 30 minutes, or sooner when a watcher fires. Keep
 going until the PR meets the skill's "Done" criteria, then report back to me.

@@ -115,17 +115,28 @@ expensive one.
 Tiers are the same four everywhere; only the models filling them change, and
 they change by *provider*, not by host:
 
-| Tier | Dispatch | Anthropic (Claude Code / Copilot) | GPT | Use for |
-|------|----------|-----------------------------------|-----|---------|
-| Fast | `build:fast-coding-agent` | `haiku` / `claude-haiku-4.5` @ high | `gpt-6-luna` @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
-| Standard | `build:coding-agent` | `sonnet` / `claude-sonnet-5` @ high | `gpt-6-terra` @ high | multi-file integration, pattern matching, debugging |
-| Deep | `build:complex-coding-agent` | `opus` / `claude-opus-5.5` @ high | `gpt-6-sol` @ medium | architecture, design judgment, broad codebase reasoning |
-| Principal | `build:principal-coding-agent` | `fable` / `claude-opus-5.5` @ high | `gpt-6-astra` @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
+| Tier | Dispatch | Anthropic | GPT | Use for |
+|------|----------|-----------|-----|---------|
+| Fast | `build:fast-coding-agent` | Haiku latest @ high | Luna latest @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
+| Standard | `build:coding-agent` | Sonnet latest @ high | Terra latest @ high | multi-file integration, pattern matching, debugging |
+| Deep | `build:complex-coding-agent` | Opus latest @ high | Sol latest @ medium | architecture, design judgment, broad codebase reasoning |
+| Principal | `build:principal-coding-agent` | Fable latest (Opus latest where the host has no Fable) @ high | Astra latest @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
 
-Dispatch the agent *and* name the model — on Copilot the frontmatter supplies
-neither. Use the host's own spelling: passing an alias on Copilot does not
-error, it silently runs a larger model. Copilot has no `fable`, so Principal
-there is `claude-opus-5.5`, or `gpt-6-astra` if the tier gap matters — say which.
+The table names model **families**, not ids, so it does not go stale when a new
+model ships. **Resolve "latest" in the host, at dispatch time:**
+
+- **Claude Code:** pass the family alias (`haiku`, `sonnet`, `opus`, `fable`).
+  The host resolves it to that family's newest model, and the agents'
+  frontmatter already pins it.
+- **Copilot CLI:** pick the newest exact id in that family from the host's own
+  model list (the dispatch tool's model choices or `/model`), e.g. the highest
+  `claude-opus-*` or `gpt-*-sol` it offers. **Never pass the family word itself.**
+  An alias passed at dispatch does not error, it silently runs a larger model.
+  If the list offers no member of a family (Copilot has no Fable), use the
+  fallback the table names and say which you chose.
+
+Resolve once per run and state the ids you resolved to in your first dispatch
+note, so the user can see what "latest" meant today.
 
 **Effort runs inverse to tier on the GPT column through Deep, and that is
 deliberate** — a smaller model thinking longer beats a larger one thinking less
@@ -140,8 +151,8 @@ does all the work. Do not substitute prompt incantations for the missing knob.
 
 ### Reading without spending context
 
-`build:bulk-reader` (`haiku` / `mai-code-1.1-flash` — reading ignores the
-provider columns, it is just the cheapest) answers a question about a set of
+`build:bulk-reader` (the cheapest fast reader the host offers: Haiku latest, or
+the newest `mai-code-*-flash` on Copilot. Reading ignores the provider columns) answers a question about a set of
 files and returns prose plus `path:line` refs, so the files fill its context
 instead of yours. **Both the primary coordinator and delegated implementers
 may use it** to understand code they are not about to change. The coordinator

@@ -22,11 +22,16 @@ Implement tasks using appropriate coding agents with continuous build verificati
   - `build:complex-coding-agent` - high-complexity architectural work
   - `build:principal-coding-agent` - whole-system reasoning, cross-cutting change, and escalation when a lower tier has failed; the slowest and most expensive tier, so do not reach for it by default
 
-  Claude Code takes the tier from each agent's frontmatter. Copilot does not, and
-  fails quietly, so name a Copilot id there. For GPT, use `gpt-6-luna` for Fast,
-  `gpt-6-terra` for Standard, and `gpt-6-sol` for Deep or Principal. For Anthropic,
-  use `claude-haiku-4.5`, `claude-sonnet-5`, and `claude-opus-5.5`.
-  `build:bulk-reader` uses `mai-code-1.1-flash`. Full table in `implement-task-next`.
+  Claude Code takes the tier from each agent's frontmatter alias, which already
+  resolves to the newest model in the family. Copilot does not, and an alias
+  passed there silently runs a larger model. So at dispatch, name the newest
+  exact id the host lists in the tier's family:
+  - Fast: Haiku latest or Luna latest.
+  - Standard: Sonnet latest or Terra latest.
+  - Deep: Opus latest or Sol latest.
+  - Principal: Fable latest (Opus latest where the host has no Fable) or Astra latest.
+  - `build:bulk-reader`: the newest `mai-code-*-flash`.
+  Never pass the family word itself on Copilot. Full table in `implement-task-next`.
 - Spawn as many agents as needed, including using the fleet skill for parallel work
 - Always use modern language syntax when possible
 

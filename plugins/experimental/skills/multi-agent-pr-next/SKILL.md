@@ -71,7 +71,8 @@ commit) and keep it current.
     you started at, so it covers your commits only.
   - A `BLOCKED` stop becomes a design question posted on the issue and
     escalated (next bullet), not the end of the collaboration.
-- **Hard design calls** go to a stronger model. Post the options and the
+- **Hard design calls** go to the Principal tier: Fable latest or Astra latest,
+  resolved in your host as `implement-task-next` describes. Post the options and the
   verdict on the issue *before* coding. Post a design that changes on contact
   with the code as a correction, with the reason.
 
