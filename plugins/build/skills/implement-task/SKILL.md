@@ -22,10 +22,11 @@ Implement tasks using appropriate coding agents with continuous build verificati
   - `build:complex-coding-agent` - high-complexity architectural work
   - `build:principal-coding-agent` - whole-system reasoning, cross-cutting change, and escalation when a lower tier has failed; the slowest and most expensive tier, so do not reach for it by default
 
-  Claude Code takes the tier from each agent's frontmatter alias, which already
-  resolves to the newest model in the family. Copilot does not, and an alias
-  passed there silently runs a larger model. So at dispatch, name the newest
-  exact id the host lists in the tier's family:
+  Claude Code takes the tier from each agent's frontmatter alias and maps it to
+  its current model for that family. Copilot honours a per-agent `model:` but not
+  those aliases, so at dispatch name an exact id from the host's model list. Pick
+  the column from the session model (`claude-*` → Anthropic, `gpt-*` → GPT), then
+  the newest member of the tier's family:
   - Fast: Haiku latest or Luna latest.
   - Standard: Sonnet latest or Terra latest.
   - Deep: Opus latest or Sol latest.
