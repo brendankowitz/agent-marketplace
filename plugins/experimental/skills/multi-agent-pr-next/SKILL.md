@@ -60,6 +60,17 @@ commit) and keep it current.
   base; otherwise it is a *guard*, which you mutation-check by breaking the
   behaviour, watching it fail, then reverting.
 - One finding per commit, with its test in the same commit.
+- **Implement your owned findings with `implement-task-next`** (this plugin).
+  Its ledger survives context compaction across a multi-hour run, and its
+  tiered delegation keeps your own context free for coordination. Three
+  adaptations:
+  - Name the run after the issue and your agent name, e.g.
+    `issue-123-marlin`, so the ledger is yours alone.
+  - Its internal and final reviews are in addition to the partner's PR
+    review. They never replace it. Cut its whole-branch review from the head
+    you started at, so it covers your commits only.
+  - A `BLOCKED` stop becomes a design question posted on the issue and
+    escalated (next bullet), not the end of the collaboration.
 - **Hard design calls** go to a stronger model. Post the options and the
   verdict on the issue *before* coding. Post a design that changes on contact
   with the code as a correction, with the reason.

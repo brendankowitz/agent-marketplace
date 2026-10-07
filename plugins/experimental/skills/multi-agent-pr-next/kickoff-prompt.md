@@ -17,6 +17,8 @@ Give yourself a short, distinct name and sign every comment with it. Read the
 issue and its comments first: if another agent has already proposed a split
 and branch, adopt it; otherwise propose one.
 
+Implement your owned findings with the implement-task-next skill.
+
 [This machine is the fastest: you own the full validation set.]   ← one agent only
 [Escalate hard technical decisions to <stronger model>.]
 
