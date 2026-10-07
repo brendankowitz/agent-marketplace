@@ -58,6 +58,7 @@ tell you which model column the run committed to:
 ```
 # ledger — task: <task description or plan file path>
 # models: anthropic (inferred)
+# resolved: fast=haiku, standard=sonnet, deep=opus, principal=fable
 ```
 
 See [Model Selection](#model-selection) for what goes on the `models:` line.
@@ -138,9 +139,11 @@ model ships. **Resolve "latest" in the host, at dispatch time:**
   [Picking the column](#picking-the-column)). If the list has no member of a
   family, use the fallback the table names and say which you chose.
 
-Resolve once per run and record the result in the ledger (below), so a resumed
-run reuses the same ids instead of re-resolving to a model that shipped
-mid-run.
+Resolve all four tiers once, when the run starts, and record them in the
+ledger header (below), so a resumed run reuses the same ids instead of
+re-resolving to a model that shipped mid-run. On Claude Code, record the
+aliases themselves: the host maps them, so the pin only holds on hosts that
+take exact ids.
 
 **Effort runs inverse to tier on the GPT column through Deep, and that is
 deliberate** — a smaller model thinking longer beats a larger one thinking less
@@ -183,8 +186,8 @@ dispatch argument. Infer the column from the session
 model (`claude-*` → Anthropic, `gpt-*` → GPT), state which one you inferred, and
 give the user one chance to override before the first dispatch. Then record it
 in the ledger and never ask again. The line is `# models: <provider>
-(inferred|confirmed)` — one provider, one qualifier. Below it, a `# resolved:`
-line records the ids "latest" resolved to, one entry per tier you use:
+(inferred|confirmed)` — one provider, one qualifier. Below it, written at the
+same time, a `# resolved:` line records all four tiers:
 
 ```
 # ledger — task: <task description or plan file path>
@@ -194,7 +197,8 @@ line records the ids "latest" resolved to, one entry per tier you use:
 
 A run that resumes after compaction reads the column and the resolved ids off
 those lines rather than re-asking or re-resolving. If either line is missing on
-resume, re-infer or re-resolve and append it — do not interrupt a run in
+resume, re-infer or re-resolve, append it as a header-format line (the last
+`# models:` / `# resolved:` line wins), and carry on — do not interrupt a run in
 progress to ask.
 
 **Turn count beats token price.** The cheapest tier routinely takes 2-3× the
