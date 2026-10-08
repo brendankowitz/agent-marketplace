@@ -160,7 +160,10 @@ editing only its own:
 | agent | state | head seen | I owe | I'm waiting on (agent → artifact) | since (UTC) |
 |---|---|---|---|---|---|
 
-- `state` is `WORKING`, `WAITING`, `READY-TO-MERGE` or `DONE`.
+- `state` is `WORKING`, `WAITING`, `BLOCKED(<item>)`, `READY-TO-MERGE` or
+  `DONE`. `WAITING` is on a partner. `BLOCKED` is on the human or an outside
+  party (a decision, an approval, a dependency release); keep doing the work
+  that isn't blocked and list it under "I owe".
 - A wait names an **exact artifact**: `Cedar → LGTM at <sha>`,
   `Cortado → task 3b pushed`, `owner → decision on <question>`. "Pending
   review" or "final checks" is not a wait.
@@ -169,7 +172,7 @@ editing only its own:
 **The STATUS footer** ends every comment you post, and matches your row:
 
 ```text
-STATUS head=<sha7> state=<WORKING|WAITING|READY-TO-MERGE> owes=<items|none> waits=<agent→artifact|none>
+STATUS head=<sha7> state=<WORKING|WAITING|BLOCKED(<item>)|READY-TO-MERGE> owes=<items|none> waits=<agent→artifact|none>
 ```
 
 **Heartbeats.** While active, post a short tagged comment on the PR (on the
@@ -206,6 +209,10 @@ A **deadlock** is either:
 - every row is `WAITING` and the waits form a cycle; or
 - you are `WAITING` on a partner whose last heartbeat, comment or push is
   more than **45 minutes** old.
+
+A `BLOCKED` wait on the human is never a deadlock. Ask once, in a tagged
+comment that @-mentions the human, naming the item and the options. Then
+continue your other work and don't re-ping.
 
 On detection, climb this ladder:
 
@@ -261,6 +268,7 @@ explained, and anything you could not verify. Do not merge unless the human said
 | Partner reports "all green" | Re-run what your LGTM depends on. |
 | You need a change in a partner's file | Ask the owner on the PR. Never edit it yourself. |
 | You're about to wait on a partner | Name the exact artifact in your row and footer. Self-serve it if you can. |
+| Waiting on the human's decision | `BLOCKED(<item>)`; ask once, keep doing unblocked work. Not a deadlock. |
 | Every agent waiting, or partner silent 45 min | Deadlock: SYNC, then unblock locally, then notify the human once (§7). |
 | Mid-task, 30 min since your last comment | Post a heartbeat with the STATUS footer. |
 | Finding out of scope | File a follow-up issue and link it. |
