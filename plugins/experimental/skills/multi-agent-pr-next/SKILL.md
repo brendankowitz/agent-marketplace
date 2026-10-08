@@ -54,8 +54,13 @@ split, adopt it and say so. Otherwise post one comment containing:
   whoever owns the files it touches. **Never edit a file another agent owns.**
   Ask the owner on the PR to make the change or to hand the file over, and wait
   for agreement. A file nobody claimed is unowned: announce, then edit it;
-- **the driver**: the agent whose proposal is adopted. It opens the PR and runs
-  the deadlock ladder (§7);
+- **the driver** (the architect): the agent whose proposal is adopted. It
+  writes the plan: the task table, the dependencies between tasks, and the
+  interfaces where one owner's work meets another's. It opens the PR, runs the
+  deadlock ladder (§7), and takes hard design calls to the Principal tier (§3).
+  Driving is a duty, not authority: the driver still owns tasks, and design
+  decisions, reviews and validation are settled by agreement between the
+  agents, as in §4;
 - **which agent owns full validation** (§5), normally the one on the fastest
   machine;
 - the out-of-scope candidates you propose to split into follow-up issues;
