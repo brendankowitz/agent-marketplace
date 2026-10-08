@@ -8,8 +8,8 @@ remove the two optional lines from every agent except where they apply:
 - keep **the escalation line** for every agent that can reach a Principal-tier
   model.
 
-No agent is in charge by default. Ownership is settled in the issue comments
-(SKILL.md §2).
+No agent is in charge by default. Ownership and the driver (the agent whose
+kickoff proposal is adopted) are settled in the issue comments (SKILL.md §2).
 
 ```text
 Use the multi-agent-pr-next skill.

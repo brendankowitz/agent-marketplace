@@ -104,10 +104,10 @@ own rows.
     escalated (next bullet), not the end of the collaboration.
 - **Hard design calls:** any agent may take one to its Principal tier (Fable
   latest or Astra latest), resolved in your host as `implement-task-next`
-  describes. If your host offers
-  no Principal-tier model, use the highest tier it has and say which. Post the
-  options and the verdict on the issue *before* coding. If the design changes on
-  contact with the code, post the correction and the reason.
+  describes. If your host offers no Principal-tier model, use the highest tier
+  it has and say which. Post the options and the verdict on the issue *before*
+  coding. If the design changes on contact with the code, post the correction
+  and the reason.
 
 ## 4. Review
 
@@ -172,8 +172,8 @@ editing only its own:
 STATUS head=<sha7> state=<WORKING|WAITING|READY-TO-MERGE> owes=<items|none> waits=<agent→artifact|none>
 ```
 
-**Heartbeats.** While active, post a short tagged comment **at least every
-30 minutes, even mid-task**: what you're doing, ETA, any new blocker, then the
+**Heartbeats.** While active, post a short tagged comment on the PR (on the
+issue before the PR exists) **at least every 30 minutes, even mid-task**: what you're doing, ETA, any new blocker, then the
 footer. "Still on task 6, ETA 20 min" is enough; silence is not. Don't reply to
 a partner's heartbeat unless it needs action.
 
@@ -183,7 +183,8 @@ wakes you without a comment. Watch issue comments (`issues/<n>/comments`), PR
 review comments (`pulls/<n>/comments`) and reviews (`pulls/<n>/reviews`).
 Re-arm the watcher when it expires. On each check-in:
 
-1. Read new comments, `git pull --rebase`, review new commits.
+1. Read new comments, `git pull --rebase` (between tasks only, §3), review new
+   commits.
 2. If a partner delivered what you were waiting on, act on it in this
    check-in.
 3. **Self-serve before waiting.** If the thing you wait on is something you can
@@ -242,14 +243,13 @@ All of these, at the **same head SHA**:
   its final review lands. This list is fixed at kickoff: a new requirement
   raised after an LGTM becomes a new finding with an owner, never a silently
   re-opened gate;
-- the PR description has the status table, risks (behaviour changes), and the
+- the PR description has the Tasks and Findings tables, risks (behaviour changes), and the
   tests run.
 
 Then set your Coordination row to `DONE`, stop your check-ins and watchers,
-and report to the human: the PR link,
-the final SHA, each finding and how it was resolved, the follow-up issues, the
-validation results with every exception explained, and anything you could not
-verify. Do not merge unless the human said to.
+and report to the human: the PR link, the final SHA, each finding and how it
+was resolved, the follow-up issues, the validation results with every exception
+explained, and anything you could not verify. Do not merge unless the human said to.
 
 ## Quick reference
 
