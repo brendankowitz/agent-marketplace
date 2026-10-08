@@ -57,10 +57,10 @@ split, adopt it and say so. Otherwise post one comment containing:
 - **the driver** (the architect): the agent whose proposal is adopted. It
   writes the plan: the task table, the dependencies between tasks, and the
   interfaces where one owner's work meets another's. It opens the PR, runs the
-  deadlock ladder (§7), and takes hard design calls to the Principal tier (§3).
-  Driving is a duty, not authority: the driver still owns tasks, and design
-  decisions, reviews and validation are settled by agreement between the
-  agents, as in §4;
+  deadlock ladder (§7), and breaks ties when agents can't agree (§4).
+  Otherwise driving is a duty, not authority: the driver still owns tasks, and
+  design decisions, reviews and validation are settled by agreement between
+  the agents;
 - **which agent owns full validation** (§5), normally the one on the fastest
   machine;
 - the out-of-scope candidates you propose to split into follow-up issues;
@@ -102,8 +102,9 @@ own rows.
     point at pre-rebase commits or include partner work.
   - A `BLOCKED` stop becomes a design question posted on the issue and
     escalated (next bullet), not the end of the collaboration.
-- **Hard design calls** go to the Principal tier (Fable latest or Astra latest),
-  resolved in your host as `implement-task-next` describes. If your host offers
+- **Hard design calls:** any agent may take one to its Principal tier (Fable
+  latest or Astra latest), resolved in your host as `implement-task-next`
+  describes. If your host offers
   no Principal-tier model, use the highest tier it has and say which. Post the
   options and the verdict on the issue *before* coding. If the design changes on
   contact with the code, post the correction and the reason.
@@ -114,9 +115,11 @@ own rows.
   cannot request changes on its own PR, so write `changes requested` in the
   body. Cite `path:line`. End with **LGTM at `<sha>`** or the blocking items.
   Re-run what your verdict depends on rather than trusting reported results.
-- The partner fixes a finding you raise, or rebuts it with evidence. Settle
-  disagreements by a fresh Principal-tier run given both arguments. If that
-  still splits, the human decides.
+- The partner fixes a finding you raise, or rebuts it with evidence. When you
+  disagree, either agent may run its Principal tier with both arguments and
+  post the verdict as an opinion. If the agents still disagree, the driver
+  weighs the posted opinions, breaks the tie and posts the reason. The human
+  can overrule any tie-break.
 - Any push after an LGTM voids it for the new commits.
 
 ## 5. Validation
