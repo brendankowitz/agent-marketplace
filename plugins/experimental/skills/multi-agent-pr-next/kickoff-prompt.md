@@ -1,8 +1,11 @@
 # Kickoff prompt
 
 Paste this into **each** agent's session. Fill in the bracketed values. Then
-remove the two optional lines from every agent except where they apply:
+remove the optional lines from every agent except where they apply:
 
+- keep **one scope line**, the same for every agent: the PR line to hold the
+  agents to one existing PR, the project line for a larger goal split into
+  several PRs, or neither for one issue fixed in one new PR;
 - keep **the validation line** for exactly one agent, normally the one on the
   fastest machine;
 - keep **the escalation line** for every agent that can reach a Principal-tier
@@ -24,6 +27,9 @@ Give yourself a short, distinct name and sign every comment with it. Read the
 issue and its comments first: if another agent has already proposed a split
 and branch, adopt it; otherwise propose one.
 
+Work only on PR [#M]. Don't open other PRs; file anything else as a follow-up issue.
+This is a project: issue [#N] is the coordination issue. Break the work into reviewable PRs. [You may merge a PR that meets Done. / Do not merge.]
+
 Implement your owned findings with the implement-task-next skill.
 
 This machine is the fastest: you own the full validation set.
@@ -31,8 +37,9 @@ Escalate hard technical decisions to the Principal tier (Fable latest or Astra l
 
 Check the issue and PR every 30 minutes, or sooner when a watcher fires. Post
 a heartbeat at least every 30 minutes, even mid-task, and end every comment
-with the skill's STATUS footer. Keep going until the PR meets the skill's
-"Done" criteria, then report back to me. Do not merge.
+with the skill's STATUS footer. Keep going until the PR (or, for a project,
+the last PR) meets the skill's "Done" criteria, then report back to me. Do not
+merge unless a line above allows it.
 ```
 
 ## Recurring check-in prompt

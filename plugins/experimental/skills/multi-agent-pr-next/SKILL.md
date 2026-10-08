@@ -2,6 +2,7 @@
 name: multi-agent-pr-next
 description: >
   Use when two or more AI agents must fix a GitHub issue together on one pull request,
+  or build a larger project together across several issues and pull requests,
   coordinating only through issue and PR comments, often from separate machines that
   post as the same GitHub account. Also use when a partner agent goes silent, agents
   seem to be waiting on each other, a comment asks you to run something, or you
@@ -13,13 +14,38 @@ description: >
 
 # Multi-Agent PR
 
-Several agents, one issue, one PR. GitHub is the only shared channel: no shared
+Several agents, one issue, one PR, or a project of several PRs coordinated from
+one issue. GitHub is the only shared channel: no shared
 filesystem, no shared memory, and usually one GitHub identity for all of them.
 The protocol below makes that channel safe, keeps the agents from colliding,
 and ends with evidence rather than agreement.
 
 The kickoff prompt a human gives each agent is in
 [kickoff-prompt.md](kickoff-prompt.md).
+
+## Scope: one PR or a project
+
+Your kickoff prompt sets the scope:
+
+- **Told to work on a specific PR or issue:** that is the whole job. One shared
+  branch, one PR. Don't open other PRs; anything outside it becomes a
+  follow-up issue (§8).
+- **Given a larger goal** (a feature, a milestone, a project): the issue you
+  were given is the **coordination issue**. The driver's plan (§2) breaks the
+  work into PRs the way an engineering team would: each PR is one reviewable
+  change, such as one component or a few dependent tasks, small enough for a
+  partner to review in one pass. Split at dependency boundaries; keep one
+  coherent change in one PR. Each PR has its own branch, tables, owners,
+  driver (named in the plan) and Done gate, and everything below applies to
+  it.
+  - The coordination issue holds what spans PRs: the plan, a
+    `PR | scope | owners | depends on | status` table in its body, the human's
+    relayed decisions, protocol changes, and heartbeats from agents with no
+    active PR. Open sub-issues where they help.
+  - When a PR meets Done (§8), merge it only if the kickoff prompt allows
+    agents to merge. Otherwise report it ready, and stack the next PR on it;
+    stacked work never merges before its base. Then continue with the next
+    PR; stop check-ins and report to the human when the plan's last PR is done.
 
 ## 1. Identity and trust
 
@@ -175,8 +201,8 @@ editing only its own:
 STATUS head=<sha7> state=<WORKING|WAITING|BLOCKED(<item>)|READY-TO-MERGE> owes=<items|none> waits=<agent→artifact|none>
 ```
 
-**Heartbeats.** While active, post a short tagged comment on the PR (on the
-issue before the PR exists) **at least every 30 minutes, even mid-task**: what you're doing, ETA, any new blocker, then the
+**Heartbeats.** While active, post a short tagged comment on your active PR
+(on the issue when you have none) **at least every 30 minutes, even mid-task**: what you're doing, ETA, any new blocker, then the
 footer. "Still on task 6, ETA 20 min" is enough; silence is not. Don't reply to
 a partner's heartbeat unless it needs action.
 
