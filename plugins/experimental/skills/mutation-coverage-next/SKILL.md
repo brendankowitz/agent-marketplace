@@ -4,10 +4,7 @@ description: Use Stryker.NET mutation testing to curate a .NET (C#) test suite t
 ---
 
 > **Experimental.** New in the `experimental` plugin; it may change or disappear without
-> notice. There is no stable counterpart yet. Developed during a field test on Ignixa DeId
-> ([ignixa-fhir#233](https://github.com/brendankowitz/ignixa-fhir/pull/233); that branch no
-> longer carries a copy): score rose from 43.60% to 50.89%, 15 tests added, 5 removed, no lost
-> kills. Gap-finding was valuable; redundancy pruning was modest.
+> notice. There is no stable counterpart yet.
 
 # Mutation Coverage
 
