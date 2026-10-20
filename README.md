@@ -14,7 +14,7 @@ manifests — the same approach as [superpowers](https://github.com/obra/superpo
 | `build` | Levelled coding agents (`fast-coding-agent` → `coding-agent` → `complex-coding-agent` → `principal-coding-agent`) + `bulk-reader` (read-only file summarization for the primary context and delegated implementers) + `coding-philosophy`, `implement-task`, `engineer-mode` skills | BSD-3-Clause |
 | `review` | `well-architected-agent` + Well-Architected reviews (`wa-full-review`, `wa-security-review`, `wa-reliability-review`, `wa-performance-review`) + `technical-review` | BSD-3-Clause |
 | `document` | `documentation-agent`, `persona-agent` (models your style from agent-journal sessions) + `update-documentation`, `agent-journal` skills | BSD-3-Clause |
-| `experimental` | Staging area for in-development agents and skills. Unstable, changes without notice. Skills carry a `-next` suffix so they install alongside their stable counterparts. Current contents are listed in [plugins/experimental/README.md](plugins/experimental/README.md). | BSD-3-Clause |
+| `experimental` | Staging area for in-development agents and skills, including `mutation-coverage-next` for Stryker.NET mutation coverage. Unstable, changes without notice. Skills carry a `-next` suffix so they install alongside their stable counterparts. Current contents are listed in [plugins/experimental/README.md](plugins/experimental/README.md). | BSD-3-Clause |
 
 The five phase plugins follow a feature-first workflow: **discover → decide → build → review → document**.
 `pr-review-toolkit` and `experimental` sit outside that sequence.
