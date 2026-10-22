@@ -3,6 +3,8 @@
 // chapter card, its evidence clips (with a caption bar), and a verdict card, then a summary.
 // Writes a chaptered MP4, decodes it fully, extracts inspection frames, and writes
 // <output>.chapters.md plus <output>.result.json. Requires ffmpeg and ffprobe with drawtext.
+// Narration is optional: with a "voice" section in the manifest, narration texts are spoken
+// (see narrate.mjs) and the video gets an audio track; without it the video is silent.
 //
 // Usage: node assemble-uat-video.mjs <manifest.json> [--keep-work]
 // Exit codes: 0 video written and verified, 2 bad input or ffmpeg failure.
@@ -10,6 +12,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync, statSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path';
+import { narrate } from './narrate.mjs';
 
 const VERDICTS = {
   PASS: '#2ea043',
@@ -137,19 +140,45 @@ class Layout {
   }
 }
 
-function renderCard(ctx, name, seconds, build) {
+function audioEncode() {
+  return ['-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '1'];
+}
+
+// With a voice configured every segment carries an audio track (narration or silence) so the
+// segments still concatenate by stream copy. Narration starts 0.3 s in; a segment is lengthened
+// to fit its narration, never shortened.
+async function narrationFor(ctx, text) {
+  if (!ctx.voice || !text) return null;
+  const file = await narrate(ctx.voice, text, ctx.narrationDir);
+  return { file, seconds: probeDuration(file) };
+}
+
+function audioInputs(narration) {
+  return narration ? ['-i', narration.file] : ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=mono'];
+}
+
+function audioFilter(narration) {
+  return narration ? ['-af', 'adelay=300:all=1,apad'] : [];
+}
+
+async function renderCard(ctx, name, seconds, build, narrationText) {
   const layout = new Layout(ctx);
   build(layout);
   const out = join(ctx.work, `${name}.mp4`);
   const vf = layout.filters.length ? `${layout.filters.join(',')},format=yuv420p` : 'format=yuv420p';
-  ffmpeg([
-    '-f', 'lavfi', '-i', `color=c=${ffColor(BG)}:s=${ctx.width}x${ctx.height}:r=${ctx.fps}:d=${seconds}`,
-    '-vf', vf, ...ctx.encode, out,
-  ], ctx.work);
-  return out;
+  const narration = await narrationFor(ctx, narrationText);
+  const duration = narration ? Math.max(seconds, narration.seconds + 0.9) : seconds;
+  const video = ['-f', 'lavfi', '-i', `color=c=${ffColor(BG)}:s=${ctx.width}x${ctx.height}:r=${ctx.fps}:d=${duration.toFixed(3)}`];
+  if (!ctx.voice) {
+    ffmpeg([...video, '-vf', vf, ...ctx.encode, out], ctx.work);
+  } else {
+    ffmpeg([...video, ...audioInputs(narration), '-map', '0:v', '-map', '1:a', '-vf', vf, ...audioFilter(narration),
+      '-t', duration.toFixed(3), ...ctx.encode, ...audioEncode(), out], ctx.work);
+  }
+  return { file: out, narrated: !!narration };
 }
 
-function normalizeClip(ctx, name, item, caption) {
+async function normalizeClip(ctx, name, item, caption) {
   const src = resolve(ctx.baseDir, item.path);
   if (!existsSync(src)) fail(`evidence file not found: ${src}`);
   const out = join(ctx.work, `${name}.mp4`);
@@ -162,14 +191,25 @@ function normalizeClip(ctx, name, item, caption) {
     vf += `,drawbox=x=0:y=${H - barH}:w=${W}:h=${barH}:color=${ffColor('#161b22')}:t=fill`;
     vf += `,drawtext=fontfile=${ctx.fontArg}:textfile=${file}:expansion=none:fontsize=${size}:fontcolor=${ffColor(FG)}:x=${Math.round(W * 0.03)}:y=${H - barH}+(${barH}-text_h)/2`;
   }
-  vf += ',format=yuv420p';
   const isImage = IMAGE_EXT.has(extname(src).toLowerCase());
+  const clipSeconds = isImage
+    ? item.seconds ?? 5
+    : item.seconds ?? Math.max(0.1, probeDuration(src) - (item.startSeconds ?? 0));
   const input = isImage
-    ? ['-loop', '1', '-framerate', String(ctx.fps), '-t', String(item.seconds ?? 5), '-i', src]
-    : [...(item.startSeconds ? ['-ss', String(item.startSeconds)] : []), '-i', src];
-  const limit = !isImage && item.seconds ? ['-t', String(item.seconds)] : [];
-  ffmpeg([...input, ...limit, '-vf', vf, '-an', ...ctx.encode, out], ctx.work);
-  return out;
+    ? ['-loop', '1', '-framerate', String(ctx.fps), '-t', String(clipSeconds), '-i', src]
+    : [...(item.startSeconds ? ['-ss', String(item.startSeconds)] : []), '-t', String(clipSeconds), '-i', src];
+  const narration = await narrationFor(ctx, item.narration);
+  const duration = narration ? Math.max(clipSeconds, narration.seconds + 0.9) : clipSeconds;
+  // When the narration outlasts the clip, hold its last frame rather than cutting the voice off.
+  if (duration > clipSeconds + 0.05) vf += `,tpad=stop_mode=clone:stop_duration=${(duration - clipSeconds + 0.2).toFixed(3)}`;
+  vf += ',format=yuv420p';
+  if (!ctx.voice) {
+    ffmpeg([...input, '-vf', vf, '-an', ...ctx.encode, out], ctx.work);
+  } else {
+    ffmpeg([...input, ...audioInputs(narration), '-map', '0:v', '-map', '1:a', '-vf', vf, ...audioFilter(narration),
+      '-t', duration.toFixed(3), ...ctx.encode, ...audioEncode(), out], ctx.work);
+  }
+  return { file: out, narrated: !!narration };
 }
 
 function loadManifest(manifestPath) {
@@ -194,7 +234,7 @@ function loadManifest(manifestPath) {
   return { m, baseDir: dirname(abs) };
 }
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
   const keepWork = args.includes('--keep-work');
   const manifestPath = args.find((a) => !a.startsWith('--'));
@@ -220,6 +260,8 @@ function main() {
     baseDir, work, width, height, fps,
     scale: height / 1080,
     fontArg: filterPath(font),
+    voice: m.voice ?? null,
+    narrationDir: join(dirname(output), '.narration-cache'),
     encode: ['-c:v', 'libx264', '-preset', 'medium', '-crf', String(m.crf ?? 23), '-pix_fmt', 'yuv420p', '-r', String(fps)],
     textFile(text) {
       // Text goes through files (relative to ffmpeg's cwd) so it needs no filtergraph escaping.
@@ -230,66 +272,55 @@ function main() {
   };
   const cardSeconds = m.cardSeconds ?? 3;
   const segments = [];
+  const add = (label, chapterId, rendered) => segments.push({ label, chapterId, file: rendered.file, narrated: rendered.narrated });
 
-  segments.push({
-    label: 'title',
-    file: renderCard(ctx, '000-title', m.titleSeconds ?? 5, (l) => {
-      l.text('USER ACCEPTANCE TEST', { size: 30, color: ACCENT, gapAfter: 0.2 });
-      l.rule();
-      l.text(m.title, { size: 64, gapAfter: 0.4, maxLines: 3 });
-      for (const s of [].concat(m.subtitle ?? [])) l.text(s, { size: 32, color: MUTED, gapAfter: 0.1, maxLines: 2 });
-      l.y += Math.round(30 * ctx.scale);
-      for (const c of m.chapters.slice(0, 8)) l.text(`${c.id}  ${c.title}`, { size: 30, gapAfter: 0, maxLines: 1 });
-      if (m.chapters.length > 8) l.text(`… and ${m.chapters.length - 8} more`, { size: 30, color: MUTED, maxLines: 1 });
-    }),
-  });
+  add('title', undefined, await renderCard(ctx, '000-title', m.titleSeconds ?? 5, (l) => {
+    l.text('USER ACCEPTANCE TEST', { size: 30, color: ACCENT, gapAfter: 0.2 });
+    l.rule();
+    l.text(m.title, { size: 64, gapAfter: 0.4, maxLines: 3 });
+    for (const s of [].concat(m.subtitle ?? [])) l.text(s, { size: 32, color: MUTED, gapAfter: 0.1, maxLines: 2 });
+    l.y += Math.round(30 * ctx.scale);
+    for (const c of m.chapters.slice(0, 8)) l.text(`${c.id}  ${c.title}`, { size: 30, gapAfter: 0, maxLines: 1 });
+    if (m.chapters.length > 8) l.text(`… and ${m.chapters.length - 8} more`, { size: 30, color: MUTED, maxLines: 1 });
+  }, m.titleNarration));
 
-  m.chapters.forEach((c, ci) => {
+  for (const [ci, c] of m.chapters.entries()) {
     const n = String(ci + 1).padStart(2, '0');
-    segments.push({
-      label: `${c.id}-card`, chapterId: c.id,
-      file: renderCard(ctx, `${n}-0-card`, cardSeconds, (l) => {
-        l.text(`${c.id} · criterion ${ci + 1} of ${m.chapters.length}`, { size: 32, color: ACCENT, gapAfter: 0.2 });
-        l.rule();
-        l.text(c.title, { size: 56, gapAfter: 0.5, maxLines: 4 });
-        if (c.source) l.text(`Source: ${c.source}`, { size: 30, color: MUTED, gapAfter: 0.1, maxLines: 2 });
-        if (c.proof) l.text(`Proof: ${c.proof}`, { size: 30, color: MUTED, gapAfter: 0.1, maxLines: 2 });
-      }),
-    });
-    c.evidence.forEach((e, ei) => {
+    add(`${c.id}-card`, c.id, await renderCard(ctx, `${n}-0-card`, cardSeconds, (l) => {
+      l.text(`${c.id} · criterion ${ci + 1} of ${m.chapters.length}`, { size: 32, color: ACCENT, gapAfter: 0.2 });
+      l.rule();
+      l.text(c.title, { size: 56, gapAfter: 0.5, maxLines: 4 });
+      if (c.source) l.text(`Source: ${c.source}`, { size: 30, color: MUTED, gapAfter: 0.1, maxLines: 2 });
+      if (c.proof) l.text(`Proof: ${c.proof}`, { size: 30, color: MUTED, gapAfter: 0.1, maxLines: 2 });
+    }, c.narration));
+    for (const [ei, e] of c.evidence.entries()) {
       const caption = e.caption === undefined ? `${c.id} · ${c.title}` : e.caption;
-      segments.push({
-        label: `${c.id}-evidence-${ei + 1}`, chapterId: c.id,
-        file: normalizeClip(ctx, `${n}-${ei + 1}-evidence`, e, caption),
-      });
-    });
-    segments.push({
-      label: `${c.id}-verdict`, chapterId: c.id,
-      file: renderCard(ctx, `${n}-9-verdict`, cardSeconds, (l) => {
-        l.y = Math.round(ctx.height * 0.3);
-        l.text(c.id, { size: 36, color: MUTED, gapAfter: 0.1 });
-        l.text(c.verdict, { size: 120, color: VERDICTS[c.verdict], gapAfter: 0.3 });
-        if (c.note) l.text(c.note, { size: 34, maxLines: 4 });
-      }),
-    });
-  });
+      add(`${c.id}-evidence-${ei + 1}`, c.id, await normalizeClip(ctx, `${n}-${ei + 1}-evidence`, e, caption));
+    }
+    // The spoken verdict defaults to the verdict itself, said only after the evidence was shown.
+    const verdictText = c.verdictNarration ?? `${c.id}: ${c.verdict.toLowerCase()}.`;
+    add(`${c.id}-verdict`, c.id, await renderCard(ctx, `${n}-9-verdict`, cardSeconds, (l) => {
+      l.y = Math.round(ctx.height * 0.3);
+      l.text(c.id, { size: 36, color: MUTED, gapAfter: 0.1 });
+      l.text(c.verdict, { size: 120, color: VERDICTS[c.verdict], gapAfter: 0.3 });
+      if (c.note) l.text(c.note, { size: 34, maxLines: 4 });
+    }, verdictText));
+  }
 
   if (m.summary !== false) {
-    segments.push({
-      label: 'summary',
-      file: renderCard(ctx, '999-summary', m.summarySeconds ?? 6, (l) => {
-        l.text('RESULTS', { size: 30, color: ACCENT, gapAfter: 0.2 });
-        l.rule();
-        const counts = Object.keys(VERDICTS)
-          .map((v) => [v, m.chapters.filter((c) => c.verdict === v).length])
-          .filter(([, k]) => k);
-        l.text(counts.map(([v, k]) => `${k} ${v}`).join('   '), { size: 48, gapAfter: 0.5 });
-        for (const c of m.chapters.slice(0, 12)) {
-          l.text(`${c.verdict.padEnd(9)}${c.id.padEnd(7)}${c.title}`, { size: 30, color: VERDICTS[c.verdict], gapAfter: 0, maxLines: 1 });
-        }
-        if (m.chapters.length > 12) l.text(`… and ${m.chapters.length - 12} more`, { size: 30, color: MUTED, maxLines: 1 });
-      }),
-    });
+    const counts = Object.keys(VERDICTS)
+      .map((v) => [v, m.chapters.filter((c) => c.verdict === v).length])
+      .filter(([, k]) => k);
+    const summaryText = m.summaryNarration ?? `Results: ${counts.map(([v, k]) => `${k} ${v.toLowerCase()}`).join(', ')}.`;
+    add('summary', undefined, await renderCard(ctx, '999-summary', m.summarySeconds ?? 6, (l) => {
+      l.text('RESULTS', { size: 30, color: ACCENT, gapAfter: 0.2 });
+      l.rule();
+      l.text(counts.map(([v, k]) => `${k} ${v}`).join('   '), { size: 48, gapAfter: 0.5 });
+      for (const c of m.chapters.slice(0, 12)) {
+        l.text(`${c.verdict.padEnd(9)}${c.id.padEnd(7)}${c.title}`, { size: 30, color: VERDICTS[c.verdict], gapAfter: 0, maxLines: 1 });
+      }
+      if (m.chapters.length > 12) l.text(`… and ${m.chapters.length - 12} more`, { size: 30, color: MUTED, maxLines: 1 });
+    }, summaryText));
   }
 
   // Every segment shares codec, size, fps and pixel format, so stream copy is safe.
@@ -321,6 +352,10 @@ function main() {
   if (decode.status !== 0 || decodeErrors) fail(`full decode of ${output} reported errors:\n${decodeErrors}`);
   const dims = run('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', output]).stdout.trim();
   if (dims !== `${width},${height}`) fail(`output is ${dims}, expected ${width},${height}`);
+  if (ctx.voice) {
+    const audio = run('ffprobe', ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', output]).stdout.trim();
+    if (!audio) fail('a voice is configured but the output has no audio stream');
+  }
   const total = probeDuration(output);
 
   // Inspection frames: the middle of every segment, plus 1s before the end of each evidence clip.
@@ -344,6 +379,7 @@ function main() {
   const sizeBytes = statSync(output).size;
   const result = {
     output, width, height, durationSeconds: Number(total.toFixed(2)), sizeBytes,
+    narration: ctx.voice ? { provider: ctx.voice.provider ?? 'azure-speech', voice: ctx.voice.voice ?? null, narratedSegments: segments.filter((s) => s.narrated).map((s) => s.label) } : null,
     chapters: chapters.map((ch) => ({ ...ch, start: Number(ch.start.toFixed(2)) })),
     segments: segments.map((s) => ({ label: s.label, start: Number(s.start.toFixed(2)), duration: Number(s.duration.toFixed(2)) })),
     framesDir, frames,
@@ -354,10 +390,11 @@ function main() {
   console.log(`video:    ${output}`);
   console.log(`duration: ${stamp(total)} (${result.durationSeconds}s), ${width}x${height}, ${(sizeBytes / 1048576).toFixed(1)} MB`);
   console.log('decode:   clean');
+  if (result.narration) console.log(`voice:    ${result.narration.voice ?? result.narration.provider}, ${result.narration.narratedSegments.length} narrated segments`);
   console.log(`frames:   ${frames.length} in ${framesDir}`);
   console.log(`chapters: ${output}.chapters.md`);
   console.log('');
   console.log(md);
 }
 
-main();
+main().catch((e) => fail(e.message));

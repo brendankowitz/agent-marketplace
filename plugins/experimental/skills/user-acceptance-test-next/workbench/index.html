@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UAT workbench</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand" aria-hidden="true"><span class="brand-mark">UAT</span></div>
+    <div class="titles">
+      <h1 id="nb-title">Loading notebook…</h1>
+      <div id="nb-subtitle" class="subtitle"></div>
+    </div>
+    <div id="counts" class="counts" aria-live="polite"></div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="side-section">
+        <div class="side-heading">Acceptance criteria</div>
+        <ol id="criteria" class="criteria"></ol>
+      </div>
+      <div class="side-foot">
+        <div class="live-note"><span class="live-dot"></span>Live execution — every output below is streamed from a real process run during this recording.</div>
+        <div id="nb-meta" class="nb-meta"></div>
+      </div>
+    </aside>
+
+    <main id="main" class="main">
+      <div id="cells" class="cells"></div>
+      <div class="main-spacer"></div>
+    </main>
+  </div>
+
+  <div id="summary" class="summary" hidden>
+    <div class="summary-panel">
+      <div class="summary-head">
+        <div>
+          <div class="summary-kicker">Results</div>
+          <h2 id="summary-title"></h2>
+        </div>
+        <div id="summary-counts" class="counts"></div>
+      </div>
+      <ol id="summary-list" class="summary-list"></ol>
+      <div class="summary-foot">Verdicts come from the <code>UAT_STEP</code> markers and evidence written by each cell's real run.</div>
+    </div>
+  </div>
+
+  <div id="caption" class="caption" hidden><span id="caption-text"></span></div>
+</body>
+</html>

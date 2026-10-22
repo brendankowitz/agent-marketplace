@@ -1,0 +1,85 @@
+{
+  "title": "Example · Orders API acceptance test",
+  "subtitle": [
+    "workbench example · example-api.mjs",
+    "Environment: http://127.0.0.1:4318 (local, synthetic data)"
+  ],
+  "criteria": [
+    { "id": "AC1", "title": "Creating an order returns 201 with the new order" },
+    { "id": "AC2", "title": "Every created order is logged as OrderCreated" },
+    { "id": "AC3", "title": "A refund request is accepted with 202" }
+  ],
+  "setup": {
+    "command": [
+      "node", "-e",
+      "const fs=require('fs');fs.rmSync('evidence',{recursive:true,force:true});fs.mkdirSync('evidence');(async()=>{for(let i=0;i<40;i++){try{const r=await fetch('http://127.0.0.1:4318/health');if(r.ok){console.log('example-api ready');return;}}catch{}await new Promise(r=>setTimeout(r,250));}console.error('example-api is not running on 127.0.0.1:4318');process.exit(1);})();"
+    ],
+    "timeoutSeconds": 30
+  },
+  "cells": [
+    {
+      "id": "ac1-create",
+      "criterion": "AC1",
+      "step": "AC1",
+      "title": "POST /api/orders creates an order",
+      "markdown": "Send a **real** `POST /api/orders` for 3 widgets.\n\n- Expect status **201 Created**\n- The body echoes the order with `status` = `created`",
+      "display": "node http-step.mjs --step AC1 --method POST \\\n  --url http://127.0.0.1:4318/api/orders \\\n  --header \"Content-Type: application/json\" \\\n  --body '{\"item\":\"widget\",\"qty\":3}' \\\n  --expect-status 201 --expect-json status=created --expect-json item=widget",
+      "command": [
+        "node", "../../scripts/http-step.mjs",
+        "--step", "AC1", "--method", "POST",
+        "--url", "http://127.0.0.1:4318/api/orders",
+        "--header", "Content-Type: application/json",
+        "--body", "{\"item\":\"widget\",\"qty\":3}",
+        "--expect-status", "201", "--expect-json", "status=created", "--expect-json", "item=widget",
+        "--show-header", "x-request-id",
+        "--evidence", "evidence"
+      ],
+      "timeoutSeconds": 60,
+      "readSeconds": 3
+    },
+    {
+      "id": "ac2-logged",
+      "criterion": "AC2",
+      "step": "AC2",
+      "title": "Creating an order writes an OrderCreated log line",
+      "markdown": "Remember where `app.log` ends, create a **gadget** order, then show only the *new* lines matching `OrderCreated id=… item=gadget`.\n\nThe inner request has its own step (`AC2-request`); the cell's verdict comes from the outer `AC2` log check.",
+      "display": "node log-step.mjs --step AC2 --file app.log \\\n  --pattern \"OrderCreated id=ord-\\d+ item=gadget\" \\\n  --run node http-step.mjs --step AC2-request --method POST \\\n    --url http://127.0.0.1:4318/api/orders \\\n    --body '{\"item\":\"gadget\",\"qty\":2}' --expect-status 201",
+      "command": [
+        "node", "../../scripts/log-step.mjs",
+        "--step", "AC2", "--file", "app.log",
+        "--pattern", "OrderCreated id=ord-\\d+ item=gadget",
+        "--timeout", "10",
+        "--evidence", "evidence",
+        "--run", "node", "../../scripts/http-step.mjs",
+        "--step", "AC2-request", "--method", "POST",
+        "--url", "http://127.0.0.1:4318/api/orders",
+        "--header", "Content-Type: application/json",
+        "--body", "{\"item\":\"gadget\",\"qty\":2}",
+        "--expect-status", "201",
+        "--evidence", "evidence"
+      ],
+      "timeoutSeconds": 60,
+      "readSeconds": 3.5
+    },
+    {
+      "id": "ac3-refund",
+      "criterion": "AC3",
+      "step": "AC3",
+      "title": "POST /api/refunds accepts a refund",
+      "markdown": "Request a refund for order `ord-1000`. The criterion says the API answers **202 Accepted** with `status` = `accepted`.\n\nThis example API does not implement refunds, so this cell is expected to **FAIL** — and the failure is shown, not hidden.",
+      "display": "node http-step.mjs --step AC3 --method POST \\\n  --url http://127.0.0.1:4318/api/refunds \\\n  --header \"Content-Type: application/json\" \\\n  --body '{\"orderId\":\"ord-1000\",\"amount\":12.5}' \\\n  --expect-status 202 --expect-json status=accepted",
+      "command": [
+        "node", "../../scripts/http-step.mjs",
+        "--step", "AC3", "--method", "POST",
+        "--url", "http://127.0.0.1:4318/api/refunds",
+        "--header", "Content-Type: application/json",
+        "--body", "{\"orderId\":\"ord-1000\",\"amount\":12.5}",
+        "--expect-status", "202", "--expect-json", "status=accepted",
+        "--evidence", "evidence"
+      ],
+      "timeoutSeconds": 60,
+      "readSeconds": 3.5,
+      "holdSeconds": 7
+    }
+  ]
+}

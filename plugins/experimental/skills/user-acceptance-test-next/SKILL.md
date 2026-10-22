@@ -1,7 +1,7 @@
 ---
 name: user-acceptance-test-next
 description: Run a recorded user acceptance test (UAT) of a pull request. Reads the PR description and linked issues or work items, extracts the acceptance criteria (or researches the change and proposes criteria for the user to confirm), validates each one against the running software, and produces a chaptered MP4 that shows the real evidence - HTTP requests and responses, emitted logs, UI elements appearing, documentation changes - with a PASS/FAIL verdict per criterion, plus a written UAT report. Use when asked to UAT, acceptance-test, verify, demo or "prove on video" a PR, issue or work item. Not for writing automated test suites.
-compatibility: Needs Node.js 18+, ffmpeg and ffprobe built with drawtext, VHS and ttyd for terminal evidence, and the playwright npm package for browser evidence, plus gh or Azure DevOps access to read the PR. Written for GitHub Copilot CLI and Claude Code.
+compatibility: Needs Node.js 18+, ffmpeg and ffprobe built with drawtext, and the playwright npm package for the notebook workbench and browser evidence (VHS and ttyd only for the terminal-tape alternative), plus gh or Azure DevOps access to read the PR. Optional narration uses Azure AI Speech or the OS voice. Written for GitHub Copilot CLI and Claude Code.
 ---
 
 > **Experimental.** New in the `experimental` plugin; it may change or disappear without
@@ -74,13 +74,20 @@ For each criterion choose the proof a viewer would find convincing:
 
 | The criterion is about | Show | Surface | Tool |
 |---|---|---|---|
-| API behavior | Method, URL, status, body or selected fields; boundary and negative cases | Terminal | `uat-http` (`scripts/http-step.mjs`) |
-| Something being logged, or not | The action, then only the new matching log lines | Terminal | `uat-log` (`scripts/log-step.mjs`) |
+| API behavior | Method, URL, status, body or selected fields; boundary and negative cases | Workbench | `uat-http` (`scripts/http-step.mjs`) cells |
+| Something being logged, or not | The action, then only the new matching log lines | Workbench | `uat-log` (`scripts/log-step.mjs`) cells |
+| Data written (rows, files, messages) | A direct, read-only query of the store, with expected counts | Workbench | a small run-specific script that prints `UAT_STEP` |
 | A UI element or flow | Real browser session, highlighted element, live network panel | Browser | `templates/browser-evidence.mjs` |
-| Documentation | The diff from the PR, and the rendered page where rendering matters | Terminal and/or browser | `git diff`, browser template |
-| CLI, config, migration | The command and its real output | Terminal | VHS tape |
-| Tests | A focused test run, only alongside behavior or when the criterion is about tests | Terminal | VHS tape |
+| Documentation | The diff from the PR, and the rendered page where rendering matters | Workbench and/or browser | `git diff`, browser template |
+| CLI, config, migration, restarts | The command and its real output | Workbench | `shell` cells |
+| Tests | A focused test run, only alongside behavior or when the criterion is about tests | Workbench | `shell` cell |
 | Not demonstrable by running it | Say so; offer the closest honest evidence or leave it out | — | — |
+
+The **workbench** (`workbench/`) is a notebook-style page recorded with Playwright: each cell
+explains a step, shows the command, runs it for real on a click, and renders the evidence as
+request/response, log and SQL cards with a live PASS/FAIL sidebar. Prefer it for anything
+command- or API-shaped. VHS terminal tapes (`references/terminal.md`) remain an alternative
+when the user wants a plain terminal look.
 
 Then decide the environment with the user. These choices change what gets recorded:
 
@@ -90,14 +97,16 @@ Then decide the environment with the user. These choices change what gets record
 - **What may be changed:** read-only, or synthetic data created and deleted by the run.
 - **Credentials:** only the user's existing login (`az`, `gh`, a dev-token command, or a
   browser session they sign in to themselves).
+- **Presentation:** the workbench (default) or plain terminal tapes, and whether to narrate.
 
 Write `plan.md` (criterion → scenes → expected visible result → tool) and **ask the user to
 approve the plan and environment in one question.** Reuse anything they already decided.
 
 ### 4. Prepare and preflight
 
-- Check tools: `node --version`, `ffmpeg -version`, plus `vhs` and `ttyd` for terminal
-  criteria and the `playwright` package for browser criteria. Ask before installing anything.
+- Check tools: `node --version`, `ffmpeg -version`, and the `playwright` package (installed
+  in the working directory) for the workbench and browser criteria; `vhs` and `ttyd` only if
+  you use terminal tapes. Ask before installing anything.
 - Start or reach the environment. When you start it, send its logs to a file in the working
   directory so log criteria can be shown.
 - **Preflight every step without recording**: run each `uat-http` / `uat-log` command and
@@ -109,10 +118,17 @@ approve the plan and environment in one question.** Reuse anything they already 
 
 ### 5. Record
 
-One clip per criterion, so each becomes a chapter.
-
-- Terminal criteria: VHS tapes. **Read `references/terminal.md`.**
+- Command, API, log, data and docs criteria: the workbench. Write `uat-notebook.json` (one or
+  more cells per criterion, every claim through a helper or script that prints `UAT_STEP`),
+  start `workbench/server.mjs`, and record the whole notebook in one take with
+  `workbench/record.mjs`; it writes a manifest fragment with each criterion's span.
+  **Read `workbench/README.md`, and `references/terminal.md` for the helpers' options.**
 - Browser criteria: the Playwright template. **Read `references/browser.md`.**
+- Terminal look instead of the workbench: VHS tapes, one per criterion. **Read `references/terminal.md`.**
+
+Record from a known starting state (for example a fresh database), so steps such as
+"before the feature is configured" are true on camera. If a take has a presentation problem,
+fix it and record the whole take again rather than splicing runs.
 
 Take each verdict from the step's `UAT_STEP <id> PASS|FAIL|ERROR` marker and evidence JSON
 (`evidence/*.http.json`, `*.log.json`, `*.browser.json`), not from your impression of the
@@ -128,6 +144,12 @@ Write `manifest.json` and run `node <skill-dir>/scripts/assemble-uat-video.mjs m
 Then **read the extracted frames** and confirm that each one shows what its verdict claims,
 that the text is legible, and that no secrets or unapproved data are visible.
 **Read `references/assembly.md`.**
+
+**Narration is optional.** Offer it; add it only if the user wants it. With a `voice` section
+in the manifest the assembler speaks the narration texts (Azure AI Speech with the user's
+login or a key, or the OS voice offline) and lengthens cards and clips to fit. Narration
+describes what is on screen, uses the numbers from the evidence files, and states a verdict
+only on the verdict card, after the evidence. Without `voice` the video is silent.
 
 ### 7. Report and deliver
 

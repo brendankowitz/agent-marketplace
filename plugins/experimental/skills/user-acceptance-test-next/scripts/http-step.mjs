@@ -8,7 +8,7 @@
 // but no complete response came back (timeout, reset), 2 usage error or could not connect.
 // Requires Node 18+ (global fetch). Run with --help for options.
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
@@ -16,23 +16,28 @@ const HELP = `node http-step.mjs --step AC1 --method PUT --url <url> [options]
 
   --step <id>               criterion id, used in the marker line (required)
   --method <verb>           HTTP method (default GET)
-  --url <url>               request URL (required)
+  --url <url|@file>         request URL (required); @file reads a URL saved by an earlier --save
   --header "Name: value"    request header (repeatable)
   --body <text|@file>       request body, inline or from a file
   --bearer-env <VAR>        send "Authorization: Bearer <value of VAR>"; never printed
   --expect-status <codes>   accepted status codes, comma separated (e.g. 201 or 200,204)
   --expect-body <text>      response body must contain text (repeatable)
   --reject-body <text>      response body must NOT contain text, e.g. a secret or echoed input (repeatable)
-  --expect-json <path=val>  JSON value at path must equal val, e.g. id.length=64 (repeatable)
+  --expect-json <path><op><value>
+                            check a JSON value (repeatable). op: = != > >= < <= ~= (regex).
+                            Paths: a.b, a[0].b, a.length, filters a[name=status].valueCode.
+                            value may be @file (saved by --save), e.g. entry[0].resource.id!=@first.txt
                             At least one --expect-* is required, unless --no-assert is given.
   --no-assert               display-only supporting step: no verdict, ends with UAT_STEP <step> SHOWN
   --select <paths>          show only these response fields, comma separated
   --show-header <name>      response header to display (repeatable)
   --max-lines <n>           truncate displayed bodies after n lines (default 30)
   --timeout <seconds>       request timeout (default 30)
-  --poll <seconds>          for async APIs: re-send every --poll-interval seconds until the status is
-                            one of --expect-status or <seconds> have passed (needs --expect-status)
+  --poll <seconds>          for async APIs: re-send every --poll-interval seconds until every
+                            assertion passes or <seconds> have passed (e.g. a job reaching Completed)
   --poll-interval <seconds> delay between polls (default 2)
+  --save <path>=<file>      write the JSON value at path to a file for later steps (repeatable),
+                            e.g. link[relation=next].url=next-page.txt
   --evidence <dir>          write <step>-<n>.http.json with the redacted exchange
   --no-color                disable ANSI colors`;
 
@@ -58,6 +63,7 @@ try {
       'max-lines': { type: 'string', default: '30' },
       timeout: { type: 'string', default: '30' },
       poll: { type: 'string' },
+      save: { type: 'string', multiple: true, default: [] },
       'poll-interval': { type: 'string', default: '2' },
       evidence: { type: 'string' },
       'no-color': { type: 'boolean', default: false },
@@ -82,18 +88,64 @@ function errorOut(message) {
 }
 if (!step) { console.error(HELP); errorOut('--step is required'); }
 if (!opts.url) errorOut('--url is required');
+function readAtFile(value) {
+  // "@file" reads a value saved by an earlier step (--save). Used only by --url and
+  // --expect-json; --expect-body / --reject-body are always literal text (e.g. "@odata.nextLink").
+  if (typeof value !== 'string' || !value.startsWith('@')) return { text: value, fromFile: false };
+  const file = resolve(value.slice(1));
+  if (!existsSync(file)) errorOut(`value file not found: ${file}`);
+  return { text: readFileSync(file, 'utf8').trim(), fromFile: true };
+}
+if (opts.url.startsWith('@')) opts.url = readAtFile(opts.url).text;
 const hasAssertions = !!opts['expect-status'] || opts['expect-body'].length > 0 || opts['reject-body'].length > 0 || opts['expect-json'].length > 0;
 if (!hasAssertions && !opts['no-assert']) {
   errorOut('no assertions given: pass --expect-status, --expect-body or --expect-json (or --no-assert for a display-only step)');
 }
 const maxLines = Number.parseInt(opts['max-lines'], 10);
 const timeoutMs = Number.parseFloat(opts.timeout) * 1000;
+// Parse and validate every --expect-json before sending anything, so a typo is an ERROR (exit 2)
+// rather than a crash after the request.
+const expectations = opts['expect-json'].map((exp) => {
+  const parts = splitExpectation(exp);
+  if (!parts || !parts[0]) errorOut(`--expect-json must be <path><op><value> with op one of = != > >= < <= ~=: ${exp}`);
+  const [path, op, rawValue] = parts;
+  const { text: value } = readAtFile(rawValue);
+  if (op === '~=') {
+    try { new RegExp(value); } catch (e) { errorOut(`invalid regex in --expect-json ${exp}: ${e.message}`); }
+  }
+  return { path, op, rawValue };
+});
 
-function parsePath(path) {
-  return path.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
-}
+// Paths: a.b, a[0].b, a.length, and array filters a[name=status].value (first element whose
+// property equals the text), which covers FHIR Parameters and Bundle.link lookups.
 function getPath(obj, path) {
-  return parsePath(path).reduce((v, k) => (v === undefined || v === null ? undefined : v[k]), obj);
+  const re = /\[([^\]=]+)=([^\]]*)\]|\[(\d+)\]|([^.[\]]+)/g;
+  let v = obj;
+  for (let m; (m = re.exec(path));) {
+    if (v === undefined || v === null) return undefined;
+    if (m[1] !== undefined) {
+      if (!Array.isArray(v)) return undefined;
+      v = v.find((x) => x !== null && typeof x === 'object' && String(x[m[1]]) === m[2]);
+    } else {
+      v = v[m[3] !== undefined ? Number(m[3]) : m[4]];
+    }
+  }
+  return v;
+}
+// Split "path<op>value" at the first operator outside [...], so filters may contain "=".
+function splitExpectation(exp) {
+  let depth = 0;
+  for (let i = 0; i < exp.length; i++) {
+    const ch = exp[i];
+    if (ch === '[') depth++;
+    else if (ch === ']') depth--;
+    else if (depth === 0) {
+      const two = exp.slice(i, i + 2);
+      if (['!=', '>=', '<=', '~='].includes(two)) return [exp.slice(0, i), two, exp.slice(i + 2)];
+      if (['=', '>', '<'].includes(ch)) return [exp.slice(0, i), ch, exp.slice(i + 1)];
+    }
+  }
+  return null;
 }
 function tryJson(text) {
   try { return { ok: true, value: JSON.parse(text) }; } catch { return { ok: false }; }
@@ -143,8 +195,7 @@ for (const [k, v] of redact(sentHeaders)) console.log(c.dim(`  ${k}: ${shortValu
 if (body !== undefined) console.log(indent(limit(pretty(body))));
 
 const pollSeconds = opts.poll ? Number.parseFloat(opts.poll) : 0;
-const wantStatus = opts['expect-status'] ? opts['expect-status'].split(',').map((s) => Number.parseInt(s.trim(), 10)) : null;
-if (pollSeconds && !wantStatus) errorOut('--poll needs --expect-status');
+if (pollSeconds && !hasAssertions) errorOut('--poll needs at least one assertion to wait for');
 const pollDeadline = Date.now() + pollSeconds * 1000;
 const pollInterval = Number.parseFloat(opts['poll-interval']) * 1000;
 
@@ -170,8 +221,9 @@ for (let attempt = 1; ; attempt++) {
     console.log(c.red(c.bold(`UAT_STEP ${step} FAIL`)));
     process.exit(1);
   }
-  if (!pollSeconds || wantStatus.includes(response.status) || Date.now() >= pollDeadline) break;
-  console.log(c.dim(`← ${response.status} ${response.statusText} (attempt ${attempt}; polling until ${wantStatus.join('/')})`));
+  if (!pollSeconds || evaluate().every((r) => r.pass) || Date.now() >= pollDeadline) break;
+  const pending = evaluate().filter((r) => !r.pass).map((r) => r.check).join('; ');
+  console.log(c.dim(`← ${response.status} ${response.statusText} (attempt ${attempt}; waiting for: ${pending.length > 110 ? `${pending.slice(0, 107)}…` : pending})`));
   await new Promise((r) => setTimeout(r, pollInterval));
 }
 const ms = Math.round(performance.now() - started);
@@ -197,26 +249,21 @@ if (opts.select) {
   console.log(c.dim('  (empty body)'));
 }
 
-const results = [];
-if (opts['expect-status']) {
-  const ok = opts['expect-status'].split(',').map((s) => Number.parseInt(s.trim(), 10));
-  results.push({ check: `status ${response.status} in [${ok.join(', ')}]`, pass: ok.includes(response.status) });
-}
-for (const needle of opts['expect-body']) {
-  results.push({ check: `body contains ${JSON.stringify(needle)}`, pass: text.includes(needle) });
-}
-for (const needle of opts['reject-body']) {
-  const shown = needle.length > 40 ? `${JSON.stringify(needle.slice(0, 16))}… (${needle.length} chars)` : JSON.stringify(needle);
-  results.push({ check: `body does not contain ${shown}`, pass: !text.includes(needle) });
-}
-for (const exp of opts['expect-json']) {
-  const i = exp.indexOf('=');
-  if (i <= 0) errorOut(`--expect-json must be path=value: ${exp}`);
-  const path = exp.slice(0, i);
-  const raw = exp.slice(i + 1);
-  const want = tryJson(raw).ok ? JSON.parse(raw) : raw;
-  const got = parsed.ok ? getPath(parsed.value, path) : undefined;
-  results.push({ check: `${path} = ${JSON.stringify(want)} (got ${got === undefined ? 'absent' : JSON.stringify(got)})`, pass: JSON.stringify(got) === JSON.stringify(want) });
+const results = evaluate();
+for (const spec of opts.save) {
+  const i = spec.lastIndexOf('=');
+  if (i <= 0) errorOut(`--save must be path=file: ${spec}`);
+  const value = parsed.ok ? getPath(parsed.value, spec.slice(0, i)) : undefined;
+  if (value === undefined) {
+    results.push({ check: `${spec.slice(0, i)} present (to save)`, pass: false });
+  } else {
+    try {
+      writeFileSync(resolve(spec.slice(i + 1)), typeof value === 'string' ? value : JSON.stringify(value), 'utf8');
+    } catch (e) {
+      errorOut(`could not save ${spec.slice(0, i)} to ${spec.slice(i + 1)}: ${e.message}`);
+    }
+    console.log(c.dim(`  saved ${spec.slice(0, i)} → ${spec.slice(i + 1)}`));
+  }
 }
 if (results.length === 0) {
   // --no-assert: a supporting display step that makes no claim.
@@ -233,6 +280,50 @@ process.exit(verdict === 'PASS' ? 0 : 1);
 
 function responseRecord() {
   return { status: response.status, statusText: response.statusText, headers: Object.fromEntries(shownHeaders(response.headers)), body: text };
+}
+
+// All assertions against the current response; also used by --poll to decide when to stop.
+function evaluate() {
+  const out = [];
+  const json = tryJson(text);
+  if (opts['expect-status']) {
+    const ok = opts['expect-status'].split(',').map((s) => Number.parseInt(s.trim(), 10));
+    out.push({ check: `status ${response.status} in [${ok.join(', ')}]`, pass: ok.includes(response.status) });
+  }
+  for (const needle of opts['expect-body']) {
+    out.push({ check: `body contains ${JSON.stringify(needle)}`, pass: text.includes(needle) });
+  }
+  for (const needle of opts['reject-body']) {
+    const shown = needle.length > 40 ? `${JSON.stringify(needle.slice(0, 16))}… (${needle.length} chars)` : JSON.stringify(needle);
+    out.push({ check: `body does not contain ${shown}`, pass: !text.includes(needle) });
+  }
+  for (const { path, op, rawValue } of expectations) {
+    const { text: raw } = readAtFile(rawValue);
+    const got = json.ok ? getPath(json.value, path) : undefined;
+    // When the actual value is a string, compare as text (unless the expectation is a quoted JSON
+    // string), so ids such as "123" match a literal 123 or a value saved by --save.
+    const want = typeof got === 'string' && !raw.trim().startsWith('"') ? raw : tryJson(raw).ok ? JSON.parse(raw) : raw;
+    const gotText = got === undefined ? 'absent' : JSON.stringify(got);
+    let pass;
+    if (op === '=') pass = got !== undefined && JSON.stringify(got) === JSON.stringify(want);
+    else if (op === '!=') pass = got !== undefined && JSON.stringify(got) !== JSON.stringify(want);
+    else if (op === '~=') pass = got !== undefined && new RegExp(String(want)).test(typeof got === 'string' ? got : JSON.stringify(got));
+    else {
+      // Only real numbers (or numeric strings) compare; null, "", booleans and arrays fail.
+      const a = toNumber(got);
+      const b = toNumber(want);
+      pass = Number.isFinite(a) && Number.isFinite(b)
+        && (op === '>' ? a > b : op === '>=' ? a >= b : op === '<' ? a < b : a <= b);
+    }
+    out.push({ check: `${path} ${op} ${JSON.stringify(want)} (got ${gotText})`, pass });
+  }
+  return out;
+}
+
+function toNumber(v) {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string' && v.trim() !== '') return Number(v);
+  return Number.NaN;
 }
 
 function writeEvidence({ verdict: v, durationMs, response: resp, assertions }) {

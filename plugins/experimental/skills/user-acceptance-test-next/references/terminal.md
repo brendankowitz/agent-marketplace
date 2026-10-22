@@ -1,8 +1,13 @@
-# Terminal evidence (VHS)
+# Terminal evidence: helpers and VHS tapes
 
 For criteria whose proof is a command and its output: HTTP APIs, emitted logs, CLI
 behavior, config, documentation diffs, focused test runs. `<skill-dir>` is this skill's
 directory (see SKILL.md).
+
+The **Helpers** section applies to both surfaces: workbench cells (`workbench/README.md`,
+the default) and VHS tapes (the rest of this file, for a plain terminal look). In a workbench
+notebook, call the scripts directly (`node <skill-dir>/scripts/http-step.mjs ...`) with
+`--evidence evidence`; `uat-http` / `uat-log` are the shell functions the VHS setup defines.
 
 ## Tools
 
@@ -55,15 +60,20 @@ uat-http --step AC2 --method PUT --url "$base/Patient/$id65" \
   --expect-body "64" --expect-json "issue[0].severity=error" --show-header x-request-id
 ```
 
-- `--expect-json path=value` compares JSON values; `length` works on strings and arrays
-  (`id.length=64`). Display full critical IDs and assert their exact length; similar-looking
-  text is not verification.
+- `--expect-json <path><op><value>` checks JSON values; `op` is `=`, `!=`, `>`, `>=`, `<`, `<=`
+  or `~=` (regex). `length` works on strings and arrays (`id.length=64`). Display full critical
+  IDs and assert their exact length; similar-looking text is not verification.
+- Paths support array filters, which cover FHIR `Parameters` and `Bundle.link`:
+  `parameter[name=status].valueString=Completed`, `link[relation=next].url~=ct=`.
+- `--save <path>=<file>` stores a value for a later step, and `@file` reads it back as a URL
+  (`--url @next-page.txt`) or an expected value (`entry[0].resource.id!=@page1-id.txt`).
 - `--reject-body <text>` asserts the body does **not** contain something: an echoed input,
   a secret, a stack trace.
 - `--select a,b.c` prints only those fields and labels them "selected response fields".
   Use it for large bodies so the important part stays on screen.
-- `--poll <seconds>` re-sends until the status is one of `--expect-status` (async APIs:
-  `$export`, long-running operations), showing each intermediate status on one line.
+- `--poll <seconds>` re-sends until every assertion passes or time runs out (async APIs:
+  `$export`, `$reindex`, long-running operations), showing each attempt and what it is still
+  waiting for on one line.
 - Request headers are shown with their names exactly as sent (that is also how they go on
   the wire). Values over 100 characters are shortened on screen (`aaaa… ‹2049 chars›`);
   the evidence JSON keeps them whole.

@@ -31,6 +31,42 @@ Each chapter:
 PASS and FAIL require evidence; the script refuses to make either without it. BLOCKED and
 NOT RUN may have none, and their `note` must say why.
 
+For a workbench take, copy the evidence items from `clips/workbench.webm.manifest-fragment.json`
+(one span per criterion). You may cut a long **wait** (a job polling, a server starting) by
+splitting a span into two items, as long as the second item's `caption` says what was cut and
+for how long, for example `AC1 · reindex polling trimmed (about 2 minutes of Running)`. Never
+cut a request, a result, or anything that changes the verdict.
+
+### Narration (optional)
+
+Add a `voice` section to narrate; leave it out for a silent video.
+
+```json
+"voice": {
+  "provider": "azure-speech",
+  "region": "eastus2",
+  "resourceId": "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<ai-services-or-speech>",
+  "voice": "en-US-AndrewMultilingualNeural",
+  "rate": "+4%"
+}
+```
+
+- `azure-speech` authenticates with `AZURE_SPEECH_KEY`, or with the user's Microsoft Entra login
+  (`az account get-access-token`) plus `resourceId`; the account needs a Speech role on that
+  resource (for example *Cognitive Services Speech User*). Optional: `style`, `pitch`, `lang`.
+  Try a line first: `node <skill-dir>/scripts/narrate.mjs --voice voice.json --text "Test." --out test.mp3`.
+- `system` uses the OS voice offline (Windows SAPI, macOS `say`, Linux `espeak-ng`). It sounds
+  robotic; use it only when no Azure Speech resource is available.
+- Texts: `titleNarration`, chapter `narration` (spoken over the chapter card), evidence item
+  `narration` (over the clip, from its start), chapter `verdictNarration` (default
+  `"AC1: pass."`), and `summaryNarration` (default: the counts). Audio is cached by voice
+  and text in `.narration-cache/`.
+- A card or clip is lengthened (last frame held) to fit its narration; nothing is cut. Every
+  segment gets an audio track, so the output always has audio when `voice` is set.
+- Write narration like a confident presenter explaining what the viewer is seeing: the action,
+  then the observed values taken from the evidence files. Do not announce a verdict before the
+  evidence has been shown, and do not describe anything that is not on screen.
+
 ## Build
 
 ```bash
