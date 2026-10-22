@@ -1,0 +1,47 @@
+{
+  "title": "PR #123 — Add order export",
+  "subtitle": [
+    "contoso/orders-api · head 1a2b3c4 · built locally from the PR branch",
+    "Environment: http://localhost:5000 with synthetic data"
+  ],
+  "output": "uat-pr-123.mp4",
+  "width": 1920,
+  "height": 1080,
+  "cardSeconds": 3,
+  "chapters": [
+    {
+      "id": "AC1",
+      "title": "Creating an order returns 201 with the new order's id",
+      "source": "quoted from AB#4567 Acceptance Criteria",
+      "proof": "HTTP request and response",
+      "verdict": "PASS",
+      "note": "201 Created; id returned",
+      "evidence": ["clips/AC1.mp4"]
+    },
+    {
+      "id": "AC2",
+      "title": "An OrderCreated event is logged with the order id",
+      "source": "derived from PR description",
+      "proof": "request, then the new log lines",
+      "verdict": "FAIL",
+      "note": "No OrderCreated line within 15 s",
+      "evidence": ["clips/AC2.mp4"]
+    },
+    {
+      "id": "AC3",
+      "title": "An Export button appears on the orders page",
+      "source": "inferred from the diff; confirmed by the user",
+      "proof": "browser recording with network panel",
+      "verdict": "PASS",
+      "note": "Button visible; POST /api/export returned 200",
+      "evidence": [{ "path": "clips/AC3.webm", "caption": "" }]
+    },
+    {
+      "id": "AC4",
+      "title": "The README documents the export endpoint",
+      "source": "quoted from PR checklist",
+      "verdict": "BLOCKED",
+      "note": "Docs site build needs credentials that were not available"
+    }
+  ]
+}
