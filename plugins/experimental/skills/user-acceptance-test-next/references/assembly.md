@@ -31,13 +31,18 @@ Each chapter:
 PASS and FAIL require evidence; the script refuses to make either without it. BLOCKED and
 NOT RUN may have none, and their `note` must say why.
 
-For a workbench take, copy the evidence items from `clips/workbench.webm.manifest-fragment.json`.
-When a criterion has several steps, use its `stepEvidence` items (one per step, back to back) and
-give each its own `narration`, so the voice follows the step chips and the transition cue on
-screen; with a single step, `evidence` and `stepEvidence` are the same. You may cut a long **wait** (a job polling, a server starting) by
-splitting a span into two items, as long as the second item's `caption` says what was cut and
-for how long, for example `AC1 · reindex polling trimmed (about 2 minutes of Running)`. Never
-cut a request, a result, or anything that changes the verdict.
+For a workbench take, `scripts/workbench-manifest.mjs` builds the chapters from the recorder's
+`clips/workbench.webm.manifest-fragment.json`: one item per step (`stepEvidence`), titles,
+`source` and `proof` from the notebook's criteria, verdicts from the step markers, and narration
+from `narration.json` (`criteria.<id>.card|verdict|note`, `steps.<cellId>`, and
+`steps.<cellId>#end` for the part after a trimmed wait). Without a `note` the verdict card says
+how many checked steps passed. It refuses to build when a step is ERROR or never finished.
+
+Waits are trimmed automatically for cells marked `trimWait` (see `workbench/README.md`): the
+step keeps its first and last seconds and the second part's caption says how much was cut. To
+trim by hand instead, split a span into two items and caption the second one with what was cut
+and for how long, for example `AC1 · reindex polling trimmed (about 2 minutes of Running)`.
+Only cut **waiting**; never cut a request, a result, or anything that changes the verdict.
 
 ### Narration (optional)
 

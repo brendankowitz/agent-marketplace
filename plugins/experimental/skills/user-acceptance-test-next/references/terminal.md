@@ -121,16 +121,19 @@ uat-log --step AC3 --file app.log --pattern "OrderCreated id=" --run node $UatHt
   print the matching rows. Ingestion delay is real; wait for it with a bounded retry
   loop rather than a fixed sleep, and say in the caption that it is a query.
 
-### Documentation and code criteria
+### Documentation criteria (`scripts/docs-step.mjs`)
 
-Show the change itself, from the PR's own commits:
+Show the lines the PR **added** to each doc and assert the statements the criterion needs:
 
 ```text
-git --no-pager diff --color=always <base>...<head> -- docs/limits.md
+node <skill-dir>/scripts/docs-step.mjs --step AC9 --base <merge-base sha or @merge-base.txt> \
+  --check "docs/SemanticSearch.md::disabled\s+by default" \
+  --check "docs/SemanticSearch.md::8,192-token" --evidence evidence
 ```
 
-Pair it with the rendered page (browser path) when rendering matters, for example a docs
-site, a README table, or an OpenAPI description.
+Get the base with `git merge-base <target branch> HEAD` (fetch the target first). Paths are
+repository-relative. Pair it with the rendered page (browser path) when rendering matters, for
+example a docs site, a README table, or an OpenAPI description.
 
 ### Focused tests
 

@@ -110,7 +110,12 @@ function publicNotebook() {
     file: basename(notebookPath),
     hasSetup: !!notebook.setup,
     setup: setupState.status,
-    criteria: notebook.criteria.map((k) => ({ id: String(k.id), title: String(k.title ?? '') })),
+    criteria: notebook.criteria.map((k) => ({
+      id: String(k.id),
+      title: String(k.title ?? ''),
+      source: k.source ? String(k.source) : null,
+      proof: k.proof ? String(k.proof) : null,
+    })),
     cells: notebook.cells.map((c) => ({
       id: c.id,
       criterion: c.criterion ?? null,
@@ -123,6 +128,7 @@ function publicNotebook() {
       timeoutSeconds: timeoutOf(c),
       readSeconds: c.readSeconds ?? null,
       holdSeconds: c.holdSeconds ?? null,
+      trimWait: c.trimWait ?? null,
     })),
   };
 }

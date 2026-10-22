@@ -78,7 +78,7 @@ For each criterion choose the proof a viewer would find convincing:
 | Something being logged, or not | The action, then only the new matching log lines | Workbench | `uat-log` (`scripts/log-step.mjs`) cells |
 | Data written (rows, files, messages) | A direct, read-only query of the store, with expected counts | Workbench | a small run-specific script that prints `UAT_STEP` |
 | A UI element or flow | Real browser session, highlighted element, live network panel | Browser | `templates/browser-evidence.mjs` |
-| Documentation | The diff from the PR, and the rendered page where rendering matters | Workbench and/or browser | `git diff`, browser template |
+| Documentation | The lines the PR added, and the rendered page where rendering matters | Workbench and/or browser | `scripts/docs-step.mjs`, browser template |
 | CLI, config, migration, restarts | The command and its real output | Workbench | `shell` cells |
 | Tests | A focused test run, only alongside behavior or when the criterion is about tests | Workbench | `shell` cell |
 | Not demonstrable by running it | Say so; offer the closest honest evidence or leave it out | — | — |
@@ -116,12 +116,27 @@ approve the plan and environment in one question.** Reuse anything they already 
 - If preflight shows a criterion cannot run (missing feature flag, service down, no access),
   mark it BLOCKED with the reason, tell the user, and continue with the rest.
 
+**Make every take repeatable** (you will usually record more than once):
+
+- One script that resets the starting state (drop and recreate the test database, clear
+  queues and files) and one that (re)starts the system under test with a given configuration.
+  A restart can also be a visible step (for example "restart with the default configuration").
+- A run ID (for example `HHmmss`) in every resource ID, tag and file name, set at the start of
+  each take, so takes never see each other's data. Prefer client-assigned IDs (`PUT` with an
+  ID) over server-generated ones, so assertions can name exact resources.
+- Data files and the notebook generated from that run ID, so a new take is "reset, new ID,
+  record".
+- Note local-only configuration you had to add to run the software at all (for example a
+  setting required even with a feature off) and report it separately from the PR's results.
+
 ### 5. Record
 
 - Command, API, log, data and docs criteria: the workbench. Write `uat-notebook.json` (one or
   more cells per criterion, every claim through a helper or script that prints `UAT_STEP`),
   start `workbench/server.mjs`, and record the whole notebook in one take with
-  `workbench/record.mjs`; it writes a manifest fragment with each criterion's span.
+  `workbench/record.mjs`; it writes a manifest fragment with each criterion's and each step's
+  span. Mark cells that mostly wait (job polling, server start) `trimWait`, and the long middle
+  of the wait is cut and labeled in the video automatically.
   **Read `workbench/README.md`, and `references/terminal.md` for the helpers' options.**
 - Browser criteria: the Playwright template. **Read `references/browser.md`.**
 - Terminal look instead of the workbench: VHS tapes, one per criterion. **Read `references/terminal.md`.**
@@ -140,18 +155,22 @@ service healthy, that is the product failing, and it stays FAIL.
 
 ### 6. Assemble and check
 
-Write `manifest.json` and run `node <skill-dir>/scripts/assemble-uat-video.mjs manifest.json`.
+For a workbench take, build the manifest with
+`node <skill-dir>/scripts/workbench-manifest.mjs --notebook uat-notebook.json --fragment clips/workbench.webm.manifest-fragment.json [--narration narration.json --voice voice.json] [--music <file>]`:
+one chapter per criterion, one item per step, trimmed waits included. It refuses to build when
+a step ERRORed or never finished. Otherwise write `manifest.json` by hand. Then run
+`node <skill-dir>/scripts/assemble-uat-video.mjs manifest.json`.
 Then **read the extracted frames** and confirm that each one shows what its verdict claims,
 that the text is legible, and that no secrets or unapproved data are visible.
 **Read `references/assembly.md`.**
 
-**Narration is optional.** Offer it; add it only if the user wants it. With a `voice` section
-in the manifest the assembler speaks the narration texts (Azure AI Speech with the user's
-login or a key, or the OS voice offline) and lengthens cards and clips to fit. Narration
-describes what is on screen, uses the numbers from the evidence files, and states a verdict
-only on the verdict card, after the evidence. Without `voice` the video is silent. A `music`
-section adds an optional background track, looped and ducked under the narration; use only
-music the user provides.
+**Narration is optional.** Offer it; add it only if the user wants it. Write `narration.json`
+**after** the run, from the evidence files: a line per criterion card and per step, using the
+observed values. With a `voice` section the assembler speaks the texts (Azure AI Speech with the
+user's login or a key, or the OS voice offline) and lengthens cards and clips to fit. Narration
+describes what is on screen and states a verdict only on the verdict card, after the evidence.
+Without `voice` the video is silent. A `music` section adds an optional background track,
+looped and ducked under the narration; use only music the user provides.
 
 ### 7. Report and deliver
 

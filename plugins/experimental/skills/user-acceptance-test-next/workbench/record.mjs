@@ -118,7 +118,7 @@ try {
     await page.evaluate((cid) => window.uat.reveal(cid), id);
     await page.waitForTimeout((cell.holdSeconds ?? Number(opts.hold)) * 1000);
     const cellEnd = at();
-    timeline.push({ cellId: id, criterion: cell.criterion, step: cell.step, title: cell.title, verdict, exitCode, focusAt, runAt, doneAt, endAt: cellEnd });
+    timeline.push({ cellId: id, criterion: cell.criterion, step: cell.step, title: cell.title, trimWait: cell.trimWait ?? null, verdict, exitCode, focusAt, runAt, doneAt, endAt: cellEnd });
     console.log(`${id.padEnd(16)} ${String(verdict ?? 'NO RESULT').padEnd(6)} exit ${exitCode ?? '—'}  (${focusAt}s → ${cellEnd}s)`);
   }
 
@@ -177,6 +177,7 @@ for (const t of timeline) {
 }
 writeFileSync(fragmentAbs, `${JSON.stringify({
   note: 'Paste each chapter\'s evidence into the matching chapter of manifest.json: either "evidence" (one span for the whole criterion) or "stepEvidence" (one item per step, back to back, so each step can carry its own narration). verdict is the worst UAT_STEP verdict of the chapter\'s cells; check it against the evidence before using it.',
+  baseDir: toPosix(process.cwd()),
   chapters: chapters.map((c) => ({
     id: c.id,
     title: c.title,
@@ -184,19 +185,28 @@ writeFileSync(fragmentAbs, `${JSON.stringify({
     cells: c.cells,
     evidence: [{ path: outRel, startSeconds: round(c.start), seconds: round(c.end - c.start), caption: '' }],
     // Each step runs from its focus to the next step's focus (the last to the chapter end), so
-    // the items are contiguous and together cover exactly the same span as "evidence".
-    stepEvidence: c.steps.map((t, i) => {
+    // the items are contiguous and together cover exactly the same span as "evidence". A step
+    // marked trimWait whose run is long keeps only the start and the end of the wait; the second
+    // item's caption says how much was cut, so the cut is visible in the video.
+    stepEvidence: c.steps.flatMap((t, i) => {
       const end = i + 1 < c.steps.length ? c.steps[i + 1].focusAt : c.end;
-      return {
-        path: outRel,
-        startSeconds: round(t.focusAt),
-        seconds: round(end - t.focusAt),
-        caption: '',
-        step: `${i + 1}/${c.steps.length}`,
-        cellId: t.cellId,
-        title: t.title,
-        verdict: t.verdict ?? 'NO RESULT',
-      };
+      const base = { path: outRel, caption: '', step: `${i + 1}/${c.steps.length}`, cellId: t.cellId, title: t.title, verdict: t.verdict ?? 'NO RESULT' };
+      const trim = t.trimWait === true ? {} : t.trimWait;
+      const keepStart = trim?.keepStart ?? 15;
+      const keepEnd = trim?.keepEnd ?? 8;
+      const waited = t.doneAt - t.runAt;
+      if (!trim || waited <= keepStart + keepEnd + 10) {
+        return [{ ...base, startSeconds: round(t.focusAt), seconds: round(end - t.focusAt) }];
+      }
+      const cutFrom = t.runAt + keepStart;
+      const resumeAt = t.doneAt - keepEnd;
+      const cut = resumeAt - cutFrom;
+      const amount = cut >= 90 ? `${(cut / 60).toFixed(1)} min` : `${Math.round(cut)} s`;
+      return [
+        { ...base, startSeconds: round(t.focusAt), seconds: round(cutFrom - t.focusAt), part: 'wait-start' },
+        { ...base, startSeconds: round(resumeAt), seconds: round(end - resumeAt), part: 'wait-end', trimmedSeconds: round(cut),
+          caption: `${t.criterion ?? ''} · Step ${i + 1} of ${c.steps.length} · ${amount} of waiting trimmed`.replace(/^ · /, '') },
+      ];
     }),
   })),
 }, null, 2)}\n`, 'utf8');

@@ -57,6 +57,8 @@ command and its output.
 | `evidence[]` | Optional extra evidence files (relative to `cwd`) to render, e.g. `evidence/AC4.browser.json`; shown only if written during this run. Files printed as `evidence: <path>` by the helpers are picked up automatically |
 | `timeoutSeconds` | Default 300; on timeout the process tree is killed and the cell is ERROR |
 | `readSeconds`, `holdSeconds` | Recorder pacing: reading time before the click (default 2.5) and after the result (default `--hold`) |
+| `trimWait` | `true` or `{ "keepStart": 15, "keepEnd": 8 }`, for cells that mostly **wait** (polling a job, starting a server). When the run takes longer than `keepStart + keepEnd + 10` seconds, the fragment's `stepEvidence` keeps only the first and last seconds of the wait and labels the second part, e.g. `AC1 · Step 4 of 5 · 2.1 min of waiting trimmed`. Never set it on a cell whose output during the wait is evidence |
+| `criteria[].source`, `criteria[].proof` | Optional; carried into the video's chapter cards by `scripts/workbench-manifest.mjs` |
 
 Evidence kind comes from the file name: `*.http.json`, `*.log.json`, `*.browser.json`, else a
 generic JSON card. Evidence files are read only when they resolve inside the notebook's directory
