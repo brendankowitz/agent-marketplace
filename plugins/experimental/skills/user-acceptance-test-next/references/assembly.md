@@ -31,8 +31,10 @@ Each chapter:
 PASS and FAIL require evidence; the script refuses to make either without it. BLOCKED and
 NOT RUN may have none, and their `note` must say why.
 
-For a workbench take, copy the evidence items from `clips/workbench.webm.manifest-fragment.json`
-(one span per criterion). You may cut a long **wait** (a job polling, a server starting) by
+For a workbench take, copy the evidence items from `clips/workbench.webm.manifest-fragment.json`.
+When a criterion has several steps, use its `stepEvidence` items (one per step, back to back) and
+give each its own `narration`, so the voice follows the step chips and the transition cue on
+screen; with a single step, `evidence` and `stepEvidence` are the same. You may cut a long **wait** (a job polling, a server starting) by
 splitting a span into two items, as long as the second item's `caption` says what was cut and
 for how long, for example `AC1 · reindex polling trimmed (about 2 minutes of Running)`. Never
 cut a request, a result, or anything that changes the verdict.
@@ -66,6 +68,18 @@ Add a `voice` section to narrate; leave it out for a silent video.
 - Write narration like a confident presenter explaining what the viewer is seeing: the action,
   then the observed values taken from the evidence files. Do not announce a verdict before the
   evidence has been shown, and do not describe anything that is not on screen.
+
+### Background music (optional)
+
+```json
+"music": { "path": "Demo Loop.mp3", "volume": 0.16 }
+```
+
+The track loops to the video's length, fades in (`fadeIn`, default 2 s) and out (`fadeOut`,
+default 4 s), and with narration it is ducked under the voice by sidechain compression
+(`duckThreshold` 0.02, `duckRatio` 8), so speech keeps its level. `volume` 0.16 puts a typical
+mastered track around −33 dB against a −21 dB voice. Use only music the user supplied or is
+licensed to use. Without `music` there is no music bed.
 
 ## Build
 

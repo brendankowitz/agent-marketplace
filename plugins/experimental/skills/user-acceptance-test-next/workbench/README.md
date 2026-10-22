@@ -43,7 +43,7 @@ command and its output.
 | Field | Meaning |
 |---|---|
 | `title`, `subtitle[]` | Top bar (repo · commit · environment) |
-| `criteria[{id,title}]` | Sidebar list; a criterion's status is the worst verdict (FAIL > ERROR > PASS) among its cells that have one; SHOWN cells do not count |
+| `criteria[{id,title}]` | Sidebar list; a criterion's status is the worst verdict (FAIL > ERROR > PASS) among its cells that have one; SHOWN cells do not count. Cells are grouped by their `criterion` in notebook order: when a criterion has several cells, each cell header reads **AC5 · Step 2 of 2**, the sidebar lists the steps under the active criterion with live ticks, and a short cue (criterion · step · title) appears as the recording moves to each step |
 | `setup` | Optional hidden step, same shape as a cell. Runs once when the server starts; cells wait for it. Its output never reaches the UI (printed on the server console only if it fails), and if it fails every cell is ERROR |
 | `cells[].id` | Unique, `[A-Za-z0-9_.-]`; the recorder clicks `[data-run="<id>"]` |
 | `criterion` | Criterion id the cell proves |
@@ -91,7 +91,7 @@ Outputs:
 
 - `clips/workbench.webm`: the video.
 - `workbench-timeline.json`: per cell `{cellId, criterion, step, verdict, exitCode, focusAt, runAt, doneAt, endAt}` in seconds from video start. The reference time is taken right after Playwright creates the page (when its video starts), so values can trail the video by a few milliseconds. The video runs a few seconds past `summary.endAt` while the context closes.
-- `clips/workbench.webm.manifest-fragment.json`: one chapter per criterion with an evidence item `{path, startSeconds, seconds, caption: ""}` spanning the first cell's focus to the last cell's end. Paste the items into the chapters of `manifest.json` for `scripts/assemble-uat-video.mjs`. Its `verdict` is the worst cell marker; check it against the evidence.
+- `clips/workbench.webm.manifest-fragment.json`: one chapter per criterion with `evidence` (one item `{path, startSeconds, seconds, caption: ""}` spanning the first cell's focus to the last cell's end) and `stepEvidence` (one item per step, back to back over the same span, with `step` "2/3", `cellId`, `title` and `verdict`). Use `stepEvidence` when a criterion has several steps, so each step gets its own narration. Its `verdict` is the worst cell marker; check it against the evidence.
 
 Automation API (`window.uat`, used by `record.mjs`): `ready()`, `cells()`, `focus(id)`,
 `reveal(id)`, `run(id)` → `{verdict, exitCode}`, `waitDone(id)`, `caption(text|null)`,

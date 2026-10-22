@@ -122,6 +122,21 @@ code, pre, .mono { font-family: var(--mono); }
 .crit[data-status="PASS"] { border-color: rgba(46, 160, 67, 0.4); background: #0e1a13; }
 .crit[data-status="FAIL"] { border-color: rgba(248, 81, 73, 0.45); background: #1d1012; }
 .crit[data-status="ERROR"] { border-color: rgba(210, 153, 34, 0.45); background: #1b160b; }
+.crit.active { box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.55); }
+
+/* Steps of a multi-step criterion: listed only while that criterion is active. */
+.crit-steps { list-style: none; margin: 10px 0 0; padding: 8px 0 0; border-top: 1px solid var(--border-soft); display: none; gap: 3px; flex-direction: column; }
+.crit.active .crit-steps { display: flex; }
+.crit-step { display: grid; grid-template-columns: 18px 18px 1fr; align-items: baseline; gap: 6px; padding: 4px 6px; border-radius: 6px; font-size: 13px; line-height: 1.35; color: var(--muted); }
+.crit-step .cs-no { font: 600 12px var(--mono); color: var(--faint); }
+.crit-step .cs-mark { font-size: 12px; text-align: center; }
+.crit-step.current { background: var(--accent-soft); color: var(--text); }
+.crit-step.current .cs-no { color: var(--accent); }
+.crit-step[data-status="running"] .cs-mark { color: var(--accent); }
+.crit-step[data-status="PASS"] .cs-mark { color: var(--pass-text); }
+.crit-step[data-status="FAIL"] .cs-mark { color: var(--fail); }
+.crit-step[data-status="ERROR"] .cs-mark { color: var(--error); }
+.crit-step[data-status="SHOWN"] .cs-mark { color: var(--muted); }
 
 .side-foot { padding: 16px 22px 20px; border-top: 1px solid var(--border-soft); font-size: 13px; color: var(--muted); }
 .live-note { display: flex; gap: 10px; line-height: 1.45; }
@@ -151,6 +166,42 @@ code, pre, .mono { font-family: var(--mono); }
   font: 600 14px/1.5 var(--mono);
   white-space: nowrap;
 }
+.step-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: rgba(188, 140, 255, 0.14);
+  border: 1px solid rgba(188, 140, 255, 0.4);
+  color: var(--purple);
+  font: 600 14px/1.5 var(--mono);
+  white-space: nowrap;
+}
+
+/* ---------- Step transition cue ---------- */
+.step-toast {
+  position: fixed;
+  bottom: 44px;
+  left: calc(50% + 160px);
+  transform: translate(-50%, 14px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 1300px;
+  padding: 12px 22px;
+  border-radius: 12px;
+  background: rgba(22, 27, 34, 0.97);
+  border: 1px solid rgba(188, 140, 255, 0.55);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.55);
+  font-size: 20px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 40;
+  pointer-events: none;
+}
+.step-toast.shown { opacity: 1; transform: translate(-50%, 0); }
+.step-toast .toast-step { color: var(--purple); font: 700 18px var(--mono); }
+.step-toast .toast-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pill, .out-verdict, .verdict-badge, .mini-verdict {
   display: inline-flex;
   align-items: center;

@@ -149,7 +149,9 @@ that the text is legible, and that no secrets or unapproved data are visible.
 in the manifest the assembler speaks the narration texts (Azure AI Speech with the user's
 login or a key, or the OS voice offline) and lengthens cards and clips to fit. Narration
 describes what is on screen, uses the numbers from the evidence files, and states a verdict
-only on the verdict card, after the evidence. Without `voice` the video is silent.
+only on the verdict card, after the evidence. Without `voice` the video is silent. A `music`
+section adds an optional background track, looped and ducked under the narration; use only
+music the user provides.
 
 ### 7. Report and deliver
 

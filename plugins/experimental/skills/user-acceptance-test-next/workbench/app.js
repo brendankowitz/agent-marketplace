@@ -409,7 +409,14 @@
       if (!li) continue;
       const s = criterionStatus(k.id);
       li.dataset.status = s;
-      li.querySelector('.pill').replaceWith(verdictPill(s));
+      li.querySelector('.crit-top .pill').replaceWith(verdictPill(s));
+    }
+    for (const step of document.querySelectorAll('.crit-step')) {
+      const c = cells.get(step.dataset.stepCell);
+      if (!c) continue;
+      const s = c.state === 'running' ? 'running' : c.verdict ?? 'pending';
+      step.dataset.status = s;
+      step.querySelector('.cs-mark').textContent = s === 'pending' ? '○' : s === 'running' ? '◐' : (ICON[s] ?? '•');
     }
     countsInto($('#counts'));
     if (!$('#summary').hidden) renderSummary();
@@ -423,6 +430,7 @@
 
     const head = h('header', 'cell-head');
     if (info.criterion) head.append(h('span', 'chip', info.criterion));
+    if (info.stepCount > 1) head.append(h('span', 'step-chip', `Step ${info.stepNo} of ${info.stepCount}`));
     head.append(h('h2', 'cell-title', info.title));
     const right = h('div', 'cell-head-right');
     if (info.step) right.append(h('span', 'step-label', `step ${info.step}`));
@@ -625,8 +633,48 @@
     if (!c) throw new Error(`no cell ${id}`);
     document.querySelectorAll('.cell.focused').forEach((e) => e.classList.remove('focused'));
     c.ui.sec.classList.add('focused');
+    // Sidebar: expand the active criterion's steps and mark the current one.
+    document.querySelectorAll('.crit.active').forEach((e) => e.classList.remove('active'));
+    document.querySelectorAll('.crit-step.current').forEach((e) => e.classList.remove('current'));
+    if (c.info.criterion) $(`[data-criterion="${CSS.escape(c.info.criterion)}"]`)?.classList.add('active');
+    $(`[data-step-cell="${CSS.escape(id)}"]`)?.classList.add('current');
+    keepInSidebarView(c.info.criterion, id);
+    stepToast(c.info);
     main().scrollTo({ top: Math.max(0, c.ui.sec.offsetTop - 28), behavior: 'smooth' });
     await settleScroll();
+  }
+
+  // Scroll the sidebar (its own scroll container) so the active criterion, and its current
+  // step, stay visible; lower criteria would otherwise expand below the fold.
+  function keepInSidebarView(criterion, cellId) {
+    const box = document.querySelector('.side-section');
+    const crit = criterion && $(`[data-criterion="${CSS.escape(criterion)}"]`);
+    if (!box || !crit) return;
+    const step = $(`[data-step-cell="${CSS.escape(cellId)}"]`);
+    const rel = (el) => el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+    const top = rel(crit) - 12;
+    const bottom = rel(crit) + crit.offsetHeight + 12;
+    let target = box.scrollTop;
+    if (bottom > box.scrollTop + box.clientHeight) target = bottom - box.clientHeight;
+    if (top < target) target = top;
+    // A tall criterion that cannot fit entirely: at least keep the current step in view.
+    if (step && rel(step) + step.offsetHeight > target + box.clientHeight) target = rel(step) + step.offsetHeight + 12 - box.clientHeight;
+    box.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+  }
+
+  // A short cue when the recording moves to a new step, so viewers see the transition.
+  let toastTimer = null;
+  function stepToast(info) {
+    const t = $('#step-toast');
+    if (!t || !info.criterion) return;
+    t.replaceChildren(h('span', 'chip', info.criterion));
+    if (info.stepCount > 1) t.append(h('span', 'toast-step', `Step ${info.stepNo} of ${info.stepCount}`));
+    t.append(h('span', 'toast-title', info.title));
+    t.hidden = false;
+    t.classList.remove('shown');
+    requestAnimationFrame(() => t.classList.add('shown'));
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.classList.remove('shown'); setTimeout(() => { t.hidden = true; }, 350); }, 2600);
   }
 
   // Brings the cell's results into view without hiding the start of the output.
@@ -749,6 +797,29 @@
     if (nb.hasSetup) meta.append(h('div', null, 'hidden setup runs before the first cell'));
 
     const container = $('#cells');
+    // Number each criterion's cells so multi-step criteria read "AC5 · Step 2 of 2".
+    const perCriterion = new Map();
+    for (const info of nb.cells) {
+      if (!info.criterion) continue;
+      if (!perCriterion.has(info.criterion)) perCriterion.set(info.criterion, []);
+      perCriterion.get(info.criterion).push(info);
+    }
+    for (const group of perCriterion.values()) {
+      group.forEach((info, i) => { info.stepNo = i + 1; info.stepCount = group.length; });
+    }
+    for (const k of nb.criteria) {
+      const group = perCriterion.get(k.id) ?? [];
+      if (group.length < 2) continue;
+      const steps = h('ol', 'crit-steps');
+      for (const info of group) {
+        const li = h('li', 'crit-step');
+        li.dataset.stepCell = info.id;
+        li.dataset.status = 'pending';
+        li.append(h('span', 'cs-mark', '○'), h('span', 'cs-no', String(info.stepNo)), h('span', 'cs-title', info.title));
+        steps.append(li);
+      }
+      $(`[data-criterion="${CSS.escape(k.id)}"]`).append(steps);
+    }
     nb.cells.forEach((info) => {
       const ui = renderCell(info);
       container.append(ui.sec);

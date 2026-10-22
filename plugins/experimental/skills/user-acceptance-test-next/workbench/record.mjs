@@ -164,10 +164,11 @@ for (const t of timeline) {
   const key = t.criterion ?? t.cellId;
   let ch = chapters.find((c) => c.id === key);
   if (!ch) {
-    ch = { id: key, title: notebook.criteriaTitles[key] ?? '', verdict: null, cells: [], start: t.focusAt, end: t.endAt };
+    ch = { id: key, title: notebook.criteriaTitles[key] ?? '', verdict: null, cells: [], steps: [], start: t.focusAt, end: t.endAt };
     chapters.push(ch);
   }
   ch.cells.push(`${t.cellId}: ${t.verdict ?? 'NO RESULT'}`);
+  ch.steps.push(t);
   ch.end = Math.max(ch.end, t.endAt);
   ch.start = Math.min(ch.start, t.focusAt);
   // A cell that never finished counts as ERROR for its criterion, never as "no opinion".
@@ -175,13 +176,28 @@ for (const t of timeline) {
   if (v !== 'SHOWN' && (RANK[v] ?? 0) > (RANK[ch.verdict] ?? 0)) ch.verdict = v;
 }
 writeFileSync(fragmentAbs, `${JSON.stringify({
-  note: 'Paste each chapter\'s evidence item into the matching chapter of manifest.json. verdict is the worst UAT_STEP verdict of the chapter\'s cells; check it against the evidence before using it.',
+  note: 'Paste each chapter\'s evidence into the matching chapter of manifest.json: either "evidence" (one span for the whole criterion) or "stepEvidence" (one item per step, back to back, so each step can carry its own narration). verdict is the worst UAT_STEP verdict of the chapter\'s cells; check it against the evidence before using it.',
   chapters: chapters.map((c) => ({
     id: c.id,
     title: c.title,
     verdict: c.verdict ?? (c.cells.length ? 'SHOWN' : null),
     cells: c.cells,
     evidence: [{ path: outRel, startSeconds: round(c.start), seconds: round(c.end - c.start), caption: '' }],
+    // Each step runs from its focus to the next step's focus (the last to the chapter end), so
+    // the items are contiguous and together cover exactly the same span as "evidence".
+    stepEvidence: c.steps.map((t, i) => {
+      const end = i + 1 < c.steps.length ? c.steps[i + 1].focusAt : c.end;
+      return {
+        path: outRel,
+        startSeconds: round(t.focusAt),
+        seconds: round(end - t.focusAt),
+        caption: '',
+        step: `${i + 1}/${c.steps.length}`,
+        cellId: t.cellId,
+        title: t.title,
+        verdict: t.verdict ?? 'NO RESULT',
+      };
+    }),
   })),
 }, null, 2)}\n`, 'utf8');
 

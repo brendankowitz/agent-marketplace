@@ -10,7 +10,7 @@
 // Exit codes: 0 video written and verified, 2 bad input or ffmpeg failure.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, statSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, rmSync, statSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path';
 import { narrate } from './narrate.mjs';
 
@@ -346,15 +346,38 @@ async function main() {
   mkdirSync(dirname(output), { recursive: true });
   ffmpeg(['-i', 'joined.mp4', '-i', 'chapters.txt', '-map_metadata', '1', '-map_chapters', '1', '-c', 'copy', '-movflags', '+faststart', output], work);
 
+  // Optional background music: looped to the video's length, faded in and out, and ducked under
+  // the narration (sidechain compression) so the voice stays clear.
+  if (m.music) {
+    const music = resolve(baseDir, m.music.path ?? '');
+    if (!m.music.path || !existsSync(music)) fail(`music file not found: ${music}`);
+    const T = probeDuration(output);
+    const vol = m.music.volume ?? 0.16;
+    const fadeIn = m.music.fadeIn ?? 2;
+    const fadeOut = m.music.fadeOut ?? 4;
+    const bed = `[1:a:0]aformat=sample_rates=48000:channel_layouts=stereo,volume=${vol},afade=t=in:st=0:d=${fadeIn},afade=t=out:st=${Math.max(0, T - fadeOut).toFixed(3)}:d=${fadeOut}`;
+    const graph = ctx.voice
+      ? `${bed}[m];[0:a]aformat=sample_rates=48000:channel_layouts=mono,pan=stereo|c0=c0|c1=c0,asplit=2[v1][v2];`
+        + `[m][v1]sidechaincompress=threshold=${m.music.duckThreshold ?? 0.02}:ratio=${m.music.duckRatio ?? 8}:attack=20:release=400[md];`
+        + '[v2][md]amix=inputs=2:duration=first:normalize=0[a]'
+      : `${bed}[a]`;
+    const scored = join(work, 'scored.mp4');
+    ffmpeg(['-i', output, '-stream_loop', '-1', '-i', music, '-filter_complex', graph,
+      '-map', '0:v', '-map', '[a]', '-map_metadata', '0', '-map_chapters', '0',
+      '-c:v', 'copy', '-c:a', 'aac', '-b:a', '160k', '-t', T.toFixed(3), '-movflags', '+faststart', scored], work);
+    rmSync(output, { force: true });
+    renameSync(scored, output);
+  }
+
   // Verify: a full decode must be clean and the dimensions must match.
   const decode = run('ffmpeg', ['-hide_banner', '-v', 'error', '-i', output, '-f', 'null', '-'], { allowFail: true });
   const decodeErrors = (decode.stderr || '').trim();
   if (decode.status !== 0 || decodeErrors) fail(`full decode of ${output} reported errors:\n${decodeErrors}`);
   const dims = run('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', output]).stdout.trim();
   if (dims !== `${width},${height}`) fail(`output is ${dims}, expected ${width},${height}`);
-  if (ctx.voice) {
+  if (ctx.voice || m.music) {
     const audio = run('ffprobe', ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', output]).stdout.trim();
-    if (!audio) fail('a voice is configured but the output has no audio stream');
+    if (!audio) fail('narration or music is configured but the output has no audio stream');
   }
   const total = probeDuration(output);
 
