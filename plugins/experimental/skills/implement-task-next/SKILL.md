@@ -267,6 +267,22 @@ the ledger is the only place it survives.
    to the coordinator; read-only context gathering is available to both.
 2. **Build & Test** — the implementer runs the tests covering its change and
    reports the command and its output.
+
+   **Mutation check (optional, .NET).** When a sub-task adds or changes tests
+   for meaningful logic in C# code, and the `mutation-coverage-next` skill is
+   available, tell the implementer to run it scoped to the changed production
+   code once the tests pass. It should kill surviving mutants that reflect
+   real behavior and record equivalent mutants, so the tests stay "just
+   enough" and check meaningful logic. A scoped run cannot prove a test is
+   redundant: the implementer reports any new tests that killed nothing in
+   scope instead of deleting them. Pruning requires the skill's
+   whole-project run, so leave it out of the sub-task unless the plan asks
+   for it. If the repository lacks the skill's setup (pinned `dotnet-stryker`
+   or a `## Mutation Testing` profile), the implementer skips the check and
+   reports it instead of installing tools. Skip the check for non-.NET code,
+   wiring-only or trivial changes, and excluded test projects (E2E,
+   integration, container). The implementer reports the mutation score and
+   any remaining survivors with its test output.
 3. **Handle the report:**
    - **DONE** → review
    - **DONE_WITH_CONCERNS** → read them; correctness/scope concerns get
