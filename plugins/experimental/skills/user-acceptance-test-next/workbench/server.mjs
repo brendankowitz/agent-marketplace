@@ -345,14 +345,15 @@ async function runCell(cell, res) {
   }
 
   const markers = [];
-  const evidencePaths = [];
+  // Declared evidence first: when the same file is also printed as "evidence: <path>", the
+  // declared entry (with its freshness check) is the one that is kept.
+  const evidencePaths = (cell.evidence ?? []).map((p) => ({ path: p, declared: true }));
   for (const line of result.output.replace(ANSI, '').split(/\r?\n/)) {
     const m = MARKER.exec(line);
     if (m) markers.push({ step: m[1], verdict: m[2] });
     const e = EVIDENCE_LINE.exec(line);
     if (e) evidencePaths.push({ path: e[1], declared: false });
   }
-  for (const p of cell.evidence ?? []) evidencePaths.push({ path: p, declared: true });
   const evidence = readEvidence(evidencePaths, resolve(notebookDir, cell.cwd ?? '.'), notBefore);
 
   let verdict;

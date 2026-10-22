@@ -98,7 +98,7 @@ function readAtFile(value) {
   return { text: readFileSync(file, 'utf8').trim(), fromFile: true };
 }
 if (opts.url.startsWith('@')) opts.url = readAtFile(opts.url).text;
-const hasAssertions = !!opts['expect-status'] || opts['expect-body'].length > 0 || opts['reject-body'].length > 0 || opts['expect-json'].length > 0;
+const hasAssertions = opts['expect-status'] !== undefined || opts['expect-body'].length > 0 || opts['reject-body'].length > 0 || opts['expect-json'].length > 0;
 if (!hasAssertions && !opts['no-assert']) {
   errorOut('no assertions given: pass --expect-status, --expect-body, --reject-body or --expect-json (or --no-assert for a display-only step)');
 }
@@ -106,7 +106,7 @@ if (!hasAssertions && !opts['no-assert']) {
 for (const k of ['expect-body', 'reject-body']) {
   if (opts[k].some((v) => v === '')) errorOut(`--${k} is empty; it would match any body`);
 }
-if (opts['expect-status'] && !opts['expect-status'].split(',').every((s) => /^\d{3}$/.test(s.trim()))) {
+if (opts['expect-status'] !== undefined && !opts['expect-status'].split(',').every((s) => /^\d{3}$/.test(s.trim()))) {
   errorOut(`--expect-status must be 3-digit codes, comma separated: ${opts['expect-status']}`);
 }
 const num = (name, min) => {
@@ -124,6 +124,8 @@ const expectations = opts['expect-json'].map((exp) => {
   const parts = splitExpectation(exp);
   if (!parts || !parts[0]) errorOut(`--expect-json must be <path><op><value> with op one of = != > >= < <= ~=: ${exp}`);
   const [path, op, rawValue] = parts;
+  // An empty value for != or ~= is true of nearly any response (often an unset variable).
+  if ((op === '!=' || op === '~=') && rawValue === '') errorOut(`--expect-json ${path}${op} has an empty value, which matches almost anything`);
   if (!PATH_SYNTAX.test(path)) errorOut(`--expect-json path is malformed (use a.b, a[0].b, a[name=x].b): ${path}`);
   const { text: value } = readAtFile(rawValue);
   if (op === '~=') {
@@ -305,7 +307,7 @@ function responseRecord() {
 function evaluate() {
   const out = [];
   const json = tryJson(text);
-  if (opts['expect-status']) {
+  if (opts['expect-status'] !== undefined) {
     const ok = opts['expect-status'].split(',').map((s) => Number.parseInt(s.trim(), 10));
     out.push({ check: `status ${response.status} in [${ok.join(', ')}]`, pass: ok.includes(response.status) });
   }
@@ -318,7 +320,7 @@ function evaluate() {
   }
   for (const { path, op, rawValue } of expectations) {
     const { text: raw } = readAtFile(rawValue);
-    if (op === '~=' && raw === '') errorOut(`--expect-json ${path}~= has an empty pattern, which matches anything`);
+    if ((op === '~=' || op === '!=') && raw === '') errorOut(`--expect-json ${path}${op}: ${rawValue} is empty, which matches almost anything`);
     const got = json.ok ? getPath(json.value, path) : undefined;
     // When the actual value is a string, compare as text (unless the expectation is a quoted JSON
     // string), so ids such as "123" match a literal 123 or a value saved by --save.

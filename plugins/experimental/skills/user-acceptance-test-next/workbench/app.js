@@ -13,7 +13,7 @@
   };
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    // ERROR ranks worst: a step that produced no result must not hide behind another step's FAIL.
+  // ERROR ranks worst: a step that produced no result must not hide behind another step's FAIL.
   const RANK = { PASS: 1, FAIL: 2, ERROR: 3 };
   const ICON = { PASS: '✓', FAIL: '✗', ERROR: '!', SHOWN: '•', running: '', pending: '', BLOCKED: '!' };
 
@@ -398,15 +398,14 @@
   function criterionStatus(id) {
     const own = [...cells.values()].filter((c) => c.info.criterion === id);
     if (own.some((c) => c.state === 'running')) return 'running';
-    const judged = own.filter((c) => c.verdict && c.verdict !== 'SHOWN');
     // A criterion is only decided once every one of its cells has a result; an unknown verdict
     // counts as ERROR.
-    if (judged.length && own.every((c) => c.verdict)) {
+    if (!own.every((c) => c.verdict)) return 'pending';
+    const judged = own.filter((c) => c.verdict !== 'SHOWN');
+    if (judged.length) {
       return judged.map((c) => (c.verdict in RANK ? c.verdict : 'ERROR')).reduce((w, v) => (RANK[v] > RANK[w] ? v : w));
     }
-    if (judged.length) return 'pending';
-    if (own.some((c) => c.verdict === 'SHOWN')) return 'SHOWN';
-    return 'pending';
+    return own.length ? 'SHOWN' : 'pending';
   }
 
   function countsInto(target) {

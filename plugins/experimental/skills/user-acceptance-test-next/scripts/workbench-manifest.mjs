@@ -58,11 +58,15 @@ if (!Array.isArray(nb?.cells)) fail('notebook has no cells[]');
 if (!Array.isArray(frag?.chapters) || frag.chapters.length === 0) fail('fragment has no chapters');
 if (!frag.baseDir) fail('fragment has no baseDir (re-record with this version of record.mjs)');
 const nbHash = createHash('sha256').update(readFileSync(resolve(o.notebook))).digest('hex');
-if (frag.notebook?.sha256 && frag.notebook.sha256 !== nbHash) {
+if (!frag.notebook?.sha256) fail('fragment has no notebook sha256 (re-record with this version of record.mjs)');
+if (frag.notebook.sha256 !== nbHash) {
   fail('the fragment was recorded from a different version of the notebook; re-record, or pass the notebook that was recorded');
 }
 for (const [key, v] of [['criteria', say.criteria], ['steps', say.steps]]) {
   if (v !== undefined && (!v || typeof v !== 'object' || Array.isArray(v))) fail(`narration.${key} must be an object`);
+}
+for (const [id, v] of Object.entries(say.criteria ?? {})) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) fail(`narration.criteria.${id} must be an object { card, verdict, note }`);
 }
 
 const outDir = dirname(resolve(o.out));
@@ -70,14 +74,22 @@ const criteria = new Map((nb.criteria ?? []).map((k) => [String(k.id), k]));
 const usedSteps = new Set();
 const problems = [];
 const RANK = { PASS: 1, FAIL: 3 };
+const firstVerdictWord = (s) => {
+  const w = /\b(pass|passes|passed|passing|fail|fails|failed|failing|failure|failures)\b/i.exec(s)?.[1].toLowerCase();
+  return w ? (w.startsWith('pass') ? 'PASS' : 'FAIL') : null;
+};
 
-// Every notebook cell must be in this take: a step that was never recorded cannot count as passed.
+// Every notebook cell that belongs to a criterion must be in this take: a step that was never
+// recorded cannot count as passed. Cells without a criterion only show context and make no claim,
+// so they get no chapter in the video.
+const loose = new Set(nb.cells.filter((cell) => !cell.criterion).map((cell) => cell.id));
+for (const id of loose) console.warn(`workbench-manifest: cell ${id} has no criterion; it is left out of the video`);
 const recorded = new Set(frag.chapters.flatMap((c) => (c.stepEvidence ?? []).map((s) => s.cellId)));
-for (const cell of nb.cells) {
+for (const cell of nb.cells.filter((x) => x.criterion)) {
   if (!recorded.has(cell.id)) problems.push(`${cell.criterion ?? cell.id}: cell ${cell.id} is not in this take (record the whole notebook, or mark that criterion BLOCKED by hand)`);
 }
 
-const chapters = frag.chapters.map((c) => {
+const chapters = frag.chapters.filter((c) => !loose.has(c.id)).map((c) => {
   const k = criteria.get(c.id) ?? {};
   const steps = c.stepEvidence ?? [];
   if (steps.length === 0) problems.push(`${c.id}: no stepEvidence in the fragment (re-record with this version of record.mjs)`);
@@ -94,10 +106,15 @@ const chapters = frag.chapters.map((c) => {
   for (const [k, v] of Object.entries(text)) {
     if (typeof v !== 'string') problems.push(`narration.criteria.${c.id}.${k} must be a string`);
   }
-  // The spoken verdict must say the verdict the steps produced, so stale narration from an
-  // earlier take can never announce PASS over a FAIL card (or the other way round).
-  if (verdict && typeof text.verdict === 'string' && !new RegExp(verdict === 'PASS' ? '\\bpass' : '\\bfail', 'i').test(text.verdict)) {
-    problems.push(`narration.criteria.${c.id}.verdict does not say "${verdict === 'PASS' ? 'pass' : 'fail'}", but the steps say ${verdict}`);
+  // Narration must agree with the verdict the steps produced, so stale text from an earlier take
+  // can never announce PASS over a FAIL card (or the other way round): the first verdict word in
+  // the spoken verdict (required), the note and the card (when they have one) must match.
+  for (const field of ['verdict', 'note', 'card']) {
+    if (!verdict || typeof text[field] !== 'string') continue;
+    const said = firstVerdictWord(text[field]);
+    if (field === 'verdict' ? said !== verdict : said && said !== verdict) {
+      problems.push(`narration.criteria.${c.id}.${field} must say "${verdict === 'PASS' ? 'passes' : 'fails'}" before any other verdict word, but the steps say ${verdict}`);
+    }
   }
   return {
     id: c.id,

@@ -14,13 +14,14 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, sta
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-// Where a log ends now, plus a hash of its first bytes so a rewritten log can be recognised.
-function prefixHash(path, length) {
-  if (!existsSync(path) || statSync(path).size < length) return null;
+// Where a log ends now, plus hashes of its first 4 KB and of the 4 KB before that position, so a
+// rewritten log is recognised even when it starts with the same fixed startup text.
+function hashAt(path, offset, length) {
+  if (!existsSync(path) || statSync(path).size < offset + length) return null;
   const fd = openSync(path, 'r');
   try {
     const buf = Buffer.alloc(length);
-    readSync(fd, buf, 0, length, 0);
+    readSync(fd, buf, 0, length, offset);
     return createHash('sha256').update(buf).digest('hex');
   } finally {
     closeSync(fd);
@@ -29,7 +30,11 @@ function prefixHash(path, length) {
 function snapshot(path) {
   const size = existsSync(path) ? statSync(path).size : 0;
   const prefixLen = Math.min(size, 4096);
-  return { file: path, size, prefix: prefixLen ? prefixHash(path, prefixLen) : null, prefixLen };
+  return {
+    file: path, size,
+    prefix: prefixLen ? hashAt(path, 0, prefixLen) : null, prefixLen,
+    tail: prefixLen ? hashAt(path, size - prefixLen, prefixLen) : null,
+  };
 }
 
 const HELP = `node log-step.mjs --step AC3 --file <log> --pattern <regex> [options] [--run command args...]
@@ -123,10 +128,11 @@ function readFrom(offset) {
   const size = sizeOf();
   // A log that is shorter than the start position, or whose first bytes changed, was truncated
   // or recreated (an app restarted with "> app.log"): read it from the start, never skip it.
-  if (size < offset || (start.prefix && prefixHash(file, start.prefixLen) !== start.prefix)) {
+  if (size < offset || (start.prefix && hashAt(file, 0, start.prefixLen) !== start.prefix)
+    || (start.tail && hashAt(file, start.size - start.prefixLen, start.prefixLen) !== start.tail)) {
     if (!rewritten) console.log(c.yellow('  (the log was truncated or recreated since the start position; reading it from the beginning)'));
     rewritten = true;
-    start = { size: 0, prefix: null, prefixLen: 0 };
+    start = { size: 0, prefix: null, prefixLen: 0, tail: null };
     offset = 0;
   }
   if (size <= offset) return '';
@@ -144,7 +150,7 @@ function readFrom(offset) {
 }
 
 const timeoutSeconds = Number(opts.timeout);
-if (!Number.isFinite(timeoutSeconds) || timeoutSeconds < 0) errorOut(`--timeout must be a number of seconds: ${opts.timeout}`);
+if (!String(opts.timeout).trim() || !Number.isFinite(timeoutSeconds) || timeoutSeconds < 0) errorOut(`--timeout must be a number of seconds: ${opts.timeout}`);
 let start = snapshot(file);
 if (opts.since) {
   if (!existsSync(resolve(opts.since))) errorOut(`--since file not found (run --mark first): ${opts.since}`);

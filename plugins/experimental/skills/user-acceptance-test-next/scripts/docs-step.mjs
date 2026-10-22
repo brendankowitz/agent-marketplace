@@ -13,7 +13,7 @@
 // Exit codes: 0 pass, 1 a statement is missing, 2 usage or git error (including a path that
 // does not exist at --head).
 
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -67,14 +67,22 @@ for (const spec of o.check) {
   files.get(file).push(re);
 }
 
-const git = (args) => execFileSync('git', ['-c', 'core.quotePath=false', '-c', 'diff.relative=false', '--no-pager', ...args], {
-  encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 512 * 1024 * 1024,
-});
+function git(args) {
+  const r = spawnSync('git', ['-c', 'core.quotePath=false', '-c', 'diff.relative=false', '--no-pager', ...args], {
+    encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 512 * 1024 * 1024,
+  });
+  if (r.error || r.status !== 0) throw Object.assign(new Error(r.error?.message ?? `git exited ${r.status}`), { stderr: r.stderr });
+  return { stdout: r.stdout, stderr: r.stderr };
+}
 // Diff the whole tree with rename detection, then keep each file's added lines. Limiting the diff
 // to the file would hide a rename, and every line of a moved doc would count as "added".
 let diff;
 try {
-  diff = git(['diff', '-U0', '-M', '--ignore-cr-at-eol', '--no-color', '--no-ext-diff', '--no-textconv', `${base}...${o.head}`]);
+  // -l0 lifts the rename limit: when git skips rename detection, a moved doc's old lines would count as added.
+  const r = git(['diff', '-U0', '-M', '-l0', '--ignore-cr-at-eol', '--no-color', '--no-ext-diff', '--no-textconv',
+    '--src-prefix=a/', '--dst-prefix=b/', `${base}...${o.head}`]);
+  if (/rename detection/i.test(r.stderr)) errorOut(`git skipped rename detection: ${r.stderr.trim().split('\n')[0]}`);
+  diff = r.stdout;
 } catch (e) {
   errorOut(`git diff ${base}...${o.head} failed: ${(e.stderr || e.message).toString().trim().split('\n')[0]}`);
 }

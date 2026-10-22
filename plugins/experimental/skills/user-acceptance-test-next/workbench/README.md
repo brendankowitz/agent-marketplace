@@ -46,7 +46,7 @@ command and its output.
 | `criteria[{id,title}]` | Sidebar list (ids unique). A criterion's status is decided once all its cells have a result: the worst verdict (ERROR > FAIL > PASS) among them; SHOWN cells do not count. Cells are grouped by their `criterion` in notebook order, and a criterion's cells must be consecutive for recording: when a criterion has several cells, each cell header reads **AC5 · Step 2 of 2**, the sidebar lists the steps under the active criterion with live ticks, and a short cue (criterion · step · title) appears as the recording moves to each step |
 | `setup` | Optional hidden step, same shape as a cell. Runs once when the server starts; cells wait for it. Its output never reaches the UI (printed on the server console only if it fails), and if it fails every cell is ERROR |
 | `cells[].id` | Unique, `[A-Za-z0-9_.-]`; the recorder clicks `[data-run="<id>"]` |
-| `criterion` | Criterion id the cell proves |
+| `criterion` | Criterion id the cell proves. A cell without one only shows context: it is left out of the video |
 | `step` | The `UAT_STEP` id whose marker gives the cell's verdict. With `log-step --run http-step`, use the **outer** (log) step and give the inner request its own id. Markers count only at the start of a line. A cell without `step` makes no claim: SHOWN on exit 0, ERROR otherwise. A cell with `step` is ERROR when its marker is missing, when it prints that step's marker with different verdicts, or when it prints PASS/SHOWN and then exits non-zero |
 | `title`, `markdown` | Header and explanation. Markdown subset: paragraphs, headings, lists, `**bold**`, `*em*`, `` `code` ``, `[links](https://…)`, quotes, fenced code. HTML is escaped |
 | `display` | Human-readable command shown in the code block (defaults to the argv joined, or the script) |
@@ -82,7 +82,7 @@ directory where `playwright` is installed (`npm init -y; npm install playwright;
 node <skill-dir>/workbench/record.mjs --url http://127.0.0.1:4317 --out clips/workbench.webm --timeline workbench-timeline.json
 ```
 
-Options: `--cells id1,id2` (subset and order; a criterion's cells must stay consecutive), `--hold 6`, `--read 2.5`, `--overview 3`,
+Options: `--cells id1,id2` (subset and order, for previews: `workbench-manifest.mjs` refuses a take that leaves cells out; a criterion's cells must stay consecutive), `--hold 6`, `--read 2.5`, `--overview 3`,
 `--summary 5`, `--width 1920 --height 1080`, `--headed`. Flow: overview hold → per cell focus,
 read, real click on Run, wait for `data-state="done"` (timeout `timeoutSeconds + 30`), scroll the
 results into view, hold → results summary overlay. It prints each cell's verdict and exits 0 when

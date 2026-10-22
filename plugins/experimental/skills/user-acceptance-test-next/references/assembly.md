@@ -39,8 +39,9 @@ from `narration.json` (`title`, `summary`, `criteria.<id>.card|verdict|note`, `s
 how many checked steps passed. It refuses to build (exit 2) when a step is ERROR, never
 finished, or is not in the take (record the whole notebook); when the fragment's verdict
 disagrees with its steps or it was recorded from a different notebook; when narration names a
-criterion that is not in the take; or when a criterion's spoken `verdict` does not say the
-verdict the steps produced ("pass" for PASS, "fail" for FAIL).
+criterion that is not in the take; or when narration contradicts the steps' verdict: the first
+verdict word ("passes", "fails", ...) of a criterion's spoken `verdict` (required), `note` and
+`card` (when they contain one) must match. Cells without a criterion are left out of the video.
 
 Waits are trimmed automatically for passing cells marked `trimWait` (see `workbench/README.md`): the
 step keeps its first and last seconds and the second part's caption says how much was cut. To

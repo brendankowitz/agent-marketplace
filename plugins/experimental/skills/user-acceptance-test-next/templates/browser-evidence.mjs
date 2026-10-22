@@ -82,40 +82,41 @@ class StopScenario extends Error {}
 
 let browser;
 let context;
+let page;
 try {
   browser = await chromium.launch({ headless: !opts.headed, slowMo: Number(opts['slow-mo']) });
   context = await browser.newContext({
-  baseURL: opts['base-url'],
-  viewport: size,
-  deviceScaleFactor: 1,
-  recordVideo: { dir: rawDir, size },
-  ...(opts['storage-state'] ? { storageState: resolve(opts['storage-state']) } : {}),
+    baseURL: opts['base-url'],
+    viewport: size,
+    deviceScaleFactor: 1,
+    recordVideo: { dir: rawDir, size },
+    ...(opts['storage-state'] ? { storageState: resolve(opts['storage-state']) } : {}),
+  });
+  page = await context.newPage();
+  // Overlays live in a closed shadow root: Playwright locators do not pierce closed shadow roots,
+  // so caption, highlight-label and network-panel text can never satisfy (or collide with) a
+  // check's getByText/getByRole. They are pointer-events:none, so they never intercept clicks,
+  // and they are re-applied after each navigation.
+  await context.addInitScript(() => {
+    let root = null;
+    Object.defineProperty(window, '__uatOverlayRoot', {
+      enumerable: false,
+      value: () => {
+        if (root && root.host.isConnected) return root;
+        const host = document.createElement('uat-overlay');
+        host.setAttribute('aria-hidden', 'true');
+        Object.assign(host.style, { position: 'fixed', inset: '0', zIndex: '2147483647', pointerEvents: 'none' });
+        root = host.attachShadow({ mode: 'closed' });
+        document.documentElement.appendChild(host);
+        return root;
+      },
+    });
   });
 } catch (e) {
   await browser?.close();
   setupError(`could not start the browser: ${e.message.split('\n')[0]}`);
 }
-const page = await context.newPage();
 
-// Overlays live in a closed shadow root: Playwright locators do not pierce closed shadow roots,
-// so caption, highlight-label and network-panel text can never satisfy (or collide with) a
-// check's getByText/getByRole. They are pointer-events:none, so they never intercept clicks,
-// and they are re-applied after each navigation.
-await context.addInitScript(() => {
-  let root = null;
-  Object.defineProperty(window, '__uatOverlayRoot', {
-    enumerable: false,
-    value: () => {
-      if (root && root.host.isConnected) return root;
-      const host = document.createElement('uat-overlay');
-      host.setAttribute('aria-hidden', 'true');
-      Object.assign(host.style, { position: 'fixed', inset: '0', zIndex: '2147483647', pointerEvents: 'none' });
-      root = host.attachShadow({ mode: 'closed' });
-      document.documentElement.appendChild(host);
-      return root;
-    },
-  });
-});
 let currentCaption = null;
 // An overlay can fail while a page navigates; log it, since a missing caption changes what the video shows.
 const overlay = (fn, arg) => page.evaluate(fn, arg).catch((e) => console.error(`overlay not drawn: ${String(e.message ?? e).split('\n')[0]}`));
@@ -224,6 +225,8 @@ try {
   else { verdict = 'ERROR'; error = String(e.stack ?? e); console.error(error); }
 }
 
+// A check fired late (an event handler during the final pause) still counts.
+if (verdict === 'PASS' && (pendingChecks || checks.some((x) => !x.pass))) verdict = pendingChecks ? 'ERROR' : 'FAIL';
 const video = page.video();
 await page.close();
 await context.close();
