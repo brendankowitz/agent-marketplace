@@ -14,9 +14,9 @@ claude plugin install experimental@agent-marketplace
 
 | Skill | Successor to | What is being tried |
 |---|---|---|
-| `implement-task-next` | `build:implement-task` | A compaction-proof ledger under `./agent-working/`, model tiers split by provider (Anthropic / GPT) with per-tier reasoning effort, a bounded fix loop with tier escalation, and a status contract for implementers. |
+| `implement-task-next` | `build:implement-task` | A compaction-proof ledger under `./agent-working/`, a mixed-family Copilot recommended default (Luna / Sonnet / Opus / Astra) with Anthropic and GPT alternatives, a Luna reader on Copilot, per-tier reasoning effort, a bounded fix loop with tier escalation, an optional scoped `mutation-coverage-next` check for .NET tests, and a status contract for implementers. |
 | `multi-agent-pr-next` | — (new) | A protocol for two or more agents fixing one issue on one PR through GitHub comments alone, with a kickoff prompt per agent. Pairs with `implement-task-next`. See its SKILL.md. |
-| `mutation-coverage-next` | — (new) | Stryker.NET mutation testing for "just enough" .NET tests: kill surviving mutants and identify redundant tests, with protected-test safeguards and a before/after lost-kill check. Requires the .NET SDK and PowerShell 7+. See its SKILL.md for the workflow and limitations. |
+| `mutation-coverage-next` | — (new) | Stryker.NET mutation testing for "just enough" .NET tests: kill surviving mutants and identify redundant tests, with protected-test safeguards and a before/after lost-kill check. Requires the .NET SDK and PowerShell 7+. Used optionally by `implement-task-next`. See its SKILL.md for the workflow and limitations. |
 
 ## Conventions
 

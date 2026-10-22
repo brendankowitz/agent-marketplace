@@ -57,8 +57,8 @@ tell you which model column the run committed to:
 
 ```
 # ledger — task: <task description or plan file path>
-# models: anthropic (inferred)
-# resolved: fast=haiku, standard=sonnet, deep=opus, principal=fable
+# models: copilot-recommended (default)
+# resolved: fast=<luna-id>, standard=<sonnet-id>, deep=<opus-id>, principal=<astra-id>, reader=<luna-id>
 ```
 
 See [Model Selection](#model-selection) for what goes on the `models:` line.
@@ -113,15 +113,17 @@ Use the least capable tier that can do the job. **Always name the model
 explicitly** — omitting it inherits the session model, usually the most
 expensive one.
 
-Tiers are the same four everywhere; only the models filling them change, and
-they change by *provider*, not by host:
+Tiers are the same four everywhere. **Copilot recommended** is the mixed-family
+default on Copilot CLI; the provider-specific columns remain explicit alternatives.
+Claude Code uses Anthropic only. These are recommended starting points, not a
+claim that one lineup is best for every task or cost target.
 
-| Tier | Dispatch | Anthropic | GPT | Use for |
-|------|----------|-----------|-----|---------|
-| Fast | `build:fast-coding-agent` | Haiku latest @ high | Luna latest @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
-| Standard | `build:coding-agent` | Sonnet latest @ high | Terra latest @ high | multi-file integration, pattern matching, debugging |
-| Deep | `build:complex-coding-agent` | Opus latest @ high | Sol latest @ medium | architecture, design judgment, broad codebase reasoning |
-| Principal | `build:principal-coding-agent` | Fable latest (Opus latest where the host has no Fable) @ high | Astra latest @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
+| Tier | Dispatch | Copilot recommended | Anthropic | GPT | Use for |
+|------|----------|---------------------|-----------|-----|---------|
+| Fast | `build:fast-coding-agent` | Luna latest @ xhigh | Haiku latest @ high | Luna latest @ xhigh | 1-2 files, complete spec, transcription, build-error fixes |
+| Standard | `build:coding-agent` | Sonnet latest @ high | Sonnet latest @ high | Terra latest @ high | multi-file integration, pattern matching, debugging |
+| Deep | `build:complex-coding-agent` | Opus latest @ high | Opus latest @ high | Sol latest @ medium | architecture, design judgment, broad codebase reasoning |
+| Principal | `build:principal-coding-agent` | Astra latest @ high | Fable latest (Opus latest where the host has no Fable) @ high | Astra latest @ high | whole-system reasoning, cross-cutting change, and escalation after a lower tier has failed |
 
 The table names model **families**, not ids, so it does not go stale when a new
 model ships. **Resolve "latest" in the host, at dispatch time:**
@@ -137,30 +139,34 @@ model ships. **Resolve "latest" in the host, at dispatch time:**
   for one. **Never pass the family word itself:** a frontmatter alias fails to
   dispatch on Copilot, and a dispatch-time alias does not select the tier (see
   [Picking the column](#picking-the-column)). If the list has no member of a
-  family, use the fallback the table names and say which you chose.
+  family, use the fallback the table names and say which you chose. If no
+  fallback is named or available, stop and ask for an available replacement;
+  never silently inherit the session model.
 
-Resolve all four tiers once, when the run starts, and record them in the
+Resolve all four tiers and the reader once, when the run starts, and record them in the
 ledger header (below), so a resumed run reuses the same ids instead of
 re-resolving to a model that shipped mid-run. On Claude Code, record the
 aliases themselves: the host maps them, so the pin only holds on hosts that
 take exact ids.
 
 **Effort runs inverse to tier on the GPT column through Deep, and that is
-deliberate** — a smaller model thinking longer beats a larger one thinking less
-at comparable cost. The Anthropic column is flat high. Principal takes full
-effort on both columns: it is the tier reached once cost has stopped being the
-trade, so choose it deliberately.
+deliberate** — it aims to trade smaller models' thinking time against larger
+models' cost. The Anthropic column is flat high; Copilot recommended uses xhigh
+for Fast and high for the other tiers. Principal uses high in every column:
+it is the escalation tier, so choose it deliberately.
 
 Effort is a *dispatch-time* argument, so it applies only where the host exposes
-one. Copilot CLI does, for both columns — pass it alongside the model. Claude
+one. Copilot CLI does, for every column — pass it alongside the model. Claude
 Code has no per-subagent effort field, so there is nothing to pass and the tier
 does all the work. Do not substitute prompt incantations for the missing knob.
 
 ### Reading without spending context
 
-`build:bulk-reader` runs on the cheapest fast reader the host offers (Haiku via
-its frontmatter on Claude Code, the newest `mai-code-*-flash` named at dispatch
-on Copilot; reading ignores the provider columns). It answers a question about a set of
+`build:bulk-reader` uses Luna latest @ xhigh on Copilot, regardless of the selected
+column; resolve it to an exact id and pass the model and effort at dispatch.
+Claude Code keeps Haiku via its frontmatter, without a per-subagent effort field.
+Luna is a quality-first reader recommendation, not a cheapest-model guarantee.
+It answers a question about a set of
 files and returns prose plus `path:line` refs, so the files fill its context
 instead of yours. **Both the primary coordinator and delegated implementers
 may use it** to understand code they are not about to change. The coordinator
@@ -177,29 +183,39 @@ facts, not implementation, debugging decisions, or architectural judgment.
 **Claude Code runs Anthropic models only**, so the column is decided for you and
 the agents' frontmatter already pins the alias, which Claude Code honors.
 
-**Copilot CLI can run either.** It does honor per-agent `model:`, but not Claude
+**Copilot CLI defaults to Copilot recommended**, regardless of the session model
+(including Auto). Users may explicitly select Anthropic or GPT instead. State
+the selected column before the first dispatch and give the user one chance to
+override; do not infer a provider column from the session model.
+
+Copilot does honor per-agent `model:`, but not Claude
 Code's short aliases — an agent pinned to `haiku` fails to dispatch there — so
 naming the model **at dispatch time**, in Copilot's own spelling, is the only
 thing that selects a tier. Both halves matter: the alias errors when it comes
 from frontmatter and silently resolves to the wrong model when it comes from a
-dispatch argument. Infer the column from the session
-model (`claude-*` → Anthropic, `gpt-*` → GPT), state which one you inferred, and
-give the user one chance to override before the first dispatch. Then record it
-in the ledger and never ask again. The line is `# models: <provider>
-(inferred|confirmed)` — one provider, one qualifier. Below it, written at the
-same time, a `# resolved:` line records all four tiers:
+dispatch argument. Record the selection in the ledger and never ask again.
+The line is `# models: <column> (default|confirmed)` — column is
+`copilot-recommended`, `anthropic`, or `gpt`; use `default` for the host's default
+and `confirmed` for an explicit user choice. Below it, written at the same time,
+a `# resolved:` line records all four tiers and the reader:
 
 ```
 # ledger — task: <task description or plan file path>
-# models: gpt (confirmed)
-# resolved: fast=<id>, standard=<id>, deep=<id>, principal=<id>
+# models: copilot-recommended (default)
+# resolved: fast=<luna-id>, standard=<sonnet-id>, deep=<opus-id>, principal=<astra-id>, reader=<luna-id>
 ```
 
 A run that resumes after compaction reads the column and the resolved ids off
-those lines rather than re-asking or re-resolving. If either line is missing on
-resume, re-infer or re-resolve, append it as a header-format line (the last
-`# models:` / `# resolved:` line wins), and carry on — do not interrupt a run in
-progress to ask.
+those lines rather than re-asking or re-resolving. Honor older
+`anthropic (inferred)` / `gpt (inferred)` headers too; the new default does not
+switch an existing run's column or tier ids. If the column line is missing,
+append the host's default. If resolved ids are missing, resolve only the missing
+entries using the recorded column and the host's reader rule, preserving every
+existing id. Append the complete header-format line (the last `# models:` /
+`# resolved:` line wins). A legacy ledger without `reader=` gains that entry
+without changing its four tiers. Do not ask again about column selection on
+resume. If a pinned id is no longer available, stop and ask for a replacement
+instead of silently switching models.
 
 **Turn count beats token price.** The cheapest tier routinely takes 2-3× the
 turns on multi-step work, costing more overall. Standard is the *floor* for
@@ -251,6 +267,22 @@ the ledger is the only place it survives.
    to the coordinator; read-only context gathering is available to both.
 2. **Build & Test** — the implementer runs the tests covering its change and
    reports the command and its output.
+
+   **Mutation check (optional, .NET).** When a sub-task adds or changes tests
+   for meaningful logic in C# code, and the `mutation-coverage-next` skill is
+   available, tell the implementer to run it scoped to the changed production
+   code once the tests pass. It should kill surviving mutants that reflect
+   real behavior and record equivalent mutants, so the tests stay "just
+   enough" and check meaningful logic. A scoped run cannot prove a test is
+   redundant: the implementer reports any new tests that killed nothing in
+   scope instead of deleting them. Pruning requires the skill's
+   whole-project run, so leave it out of the sub-task unless the plan asks
+   for it. If the repository lacks the skill's setup (pinned `dotnet-stryker`
+   or a `## Mutation Testing` profile), the implementer skips the check and
+   reports it instead of installing tools. Skip the check for non-.NET code,
+   wiring-only or trivial changes, and excluded test projects (E2E,
+   integration, container). The implementer reports the mutation score and
+   any remaining survivors with its test output.
 3. **Handle the report:**
    - **DONE** → review
    - **DONE_WITH_CONCERNS** → read them; correctness/scope concerns get
