@@ -34,11 +34,15 @@ NOT RUN may have none, and their `note` must say why.
 For a workbench take, `scripts/workbench-manifest.mjs` builds the chapters from the recorder's
 `clips/workbench.webm.manifest-fragment.json`: one item per step (`stepEvidence`), titles,
 `source` and `proof` from the notebook's criteria, verdicts from the step markers, and narration
-from `narration.json` (`criteria.<id>.card|verdict|note`, `steps.<cellId>`, and
+from `narration.json` (`title`, `summary`, `criteria.<id>.card|verdict|note`, `steps.<cellId>`, and
 `steps.<cellId>#end` for the part after a trimmed wait). Without a `note` the verdict card says
-how many checked steps passed. It refuses to build when a step is ERROR or never finished.
+how many checked steps passed. It refuses to build (exit 2) when a step is ERROR, never
+finished, or is not in the take (record the whole notebook); when the fragment's verdict
+disagrees with its steps or it was recorded from a different notebook; when narration names a
+criterion that is not in the take; or when a criterion's spoken `verdict` does not say the
+verdict the steps produced ("pass" for PASS, "fail" for FAIL).
 
-Waits are trimmed automatically for cells marked `trimWait` (see `workbench/README.md`): the
+Waits are trimmed automatically for passing cells marked `trimWait` (see `workbench/README.md`): the
 step keeps its first and last seconds and the second part's caption says how much was cut. To
 trim by hand instead, split a span into two items and caption the second one with what was cut
 and for how long, for example `AC1 · reindex polling trimmed (about 2 minutes of Running)`.

@@ -13,9 +13,11 @@
 //     "criteria": { "AC1": { "card": "…", "verdict": "…", "note": "…" } },
 //     "steps": { "<cellId>": "…", "<cellId>#end": "spoken over the part after a trimmed wait" } }
 //
-// Exit codes: 0 written, 2 refused (bad input, or a criterion whose steps ERRORed or never
-// finished: fix the step and re-record, or mark that criterion BLOCKED by hand).
+// Exit codes: 0 written, 2 refused: bad input; a step that ERRORed, never finished or was not
+// recorded in this take; a fragment verdict its steps don't support; or a fragment recorded from
+// a different notebook. Fix the step and re-record, or mark that criterion BLOCKED by hand.
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -31,47 +33,78 @@ const readJson = (p, what) => {
   try { return JSON.parse(readFileSync(abs, 'utf8')); } catch (e) { return fail(`${what} is not valid JSON: ${e.message}`); }
 };
 
-const { values: o } = parseArgs({
-  options: {
-    notebook: { type: 'string' },
-    fragment: { type: 'string' },
-    narration: { type: 'string' },
-    voice: { type: 'string' },
-    music: { type: 'string' },
-    output: { type: 'string', default: 'uat.mp4' },
-    out: { type: 'string', default: 'manifest.json' },
-  },
-});
+const { values: o } = (() => {
+  try {
+    return parseArgs({
+      options: {
+        notebook: { type: 'string' },
+        fragment: { type: 'string' },
+        narration: { type: 'string' },
+        voice: { type: 'string' },
+        music: { type: 'string' },
+        output: { type: 'string', default: 'uat.mp4' },
+        out: { type: 'string', default: 'manifest.json' },
+      },
+    });
+  } catch (e) { return fail(e.message); }
+})();
 if (!o.notebook || !o.fragment) fail('--notebook and --fragment are required');
 const nb = readJson(o.notebook, 'notebook');
 const frag = readJson(o.fragment, 'fragment');
 const say = readJson(o.narration, 'narration') ?? {};
 const voice = readJson(o.voice, 'voice');
-if (say && Object.keys(say).length && !voice) console.warn('workbench-manifest: narration given without --voice; the video will be silent');
+if (Object.keys(say).length && !voice) console.warn('workbench-manifest: narration given without --voice; the video will be silent');
+if (!Array.isArray(nb?.cells)) fail('notebook has no cells[]');
+if (!Array.isArray(frag?.chapters) || frag.chapters.length === 0) fail('fragment has no chapters');
+if (!frag.baseDir) fail('fragment has no baseDir (re-record with this version of record.mjs)');
+const nbHash = createHash('sha256').update(readFileSync(resolve(o.notebook))).digest('hex');
+if (frag.notebook?.sha256 && frag.notebook.sha256 !== nbHash) {
+  fail('the fragment was recorded from a different version of the notebook; re-record, or pass the notebook that was recorded');
+}
+for (const [key, v] of [['criteria', say.criteria], ['steps', say.steps]]) {
+  if (v !== undefined && (!v || typeof v !== 'object' || Array.isArray(v))) fail(`narration.${key} must be an object`);
+}
 
 const outDir = dirname(resolve(o.out));
-const fragDir = dirname(resolve(o.fragment));
 const criteria = new Map((nb.criteria ?? []).map((k) => [String(k.id), k]));
 const usedSteps = new Set();
 const problems = [];
+const RANK = { PASS: 1, FAIL: 3 };
 
-const chapters = (frag.chapters ?? []).map((c) => {
+// Every notebook cell must be in this take: a step that was never recorded cannot count as passed.
+const recorded = new Set(frag.chapters.flatMap((c) => (c.stepEvidence ?? []).map((s) => s.cellId)));
+for (const cell of nb.cells) {
+  if (!recorded.has(cell.id)) problems.push(`${cell.criterion ?? cell.id}: cell ${cell.id} is not in this take (record the whole notebook, or mark that criterion BLOCKED by hand)`);
+}
+
+const chapters = frag.chapters.map((c) => {
   const k = criteria.get(c.id) ?? {};
-  const steps = c.stepEvidence ?? c.evidence ?? [];
-  const verdicts = steps.filter((s) => s.part !== 'wait-end').map((s) => s.verdict);
-  if (verdicts.some((v) => v === 'ERROR' || v === 'NO RESULT')) {
-    problems.push(`${c.id}: a step is ERROR or never finished (${c.cells.join(', ')})`);
+  const steps = c.stepEvidence ?? [];
+  if (steps.length === 0) problems.push(`${c.id}: no stepEvidence in the fragment (re-record with this version of record.mjs)`);
+  // Both halves of a trimmed wait carry the step's verdict; check every item, count each step once.
+  for (const s of steps) {
+    if (!['PASS', 'FAIL', 'SHOWN'].includes(s.verdict)) problems.push(`${c.id}: step ${s.cellId} is ${s.verdict ?? 'missing a verdict'}`);
   }
-  if (!['PASS', 'FAIL'].includes(c.verdict)) problems.push(`${c.id}: verdict ${c.verdict} (no step made a PASS/FAIL claim)`);
-  const judged = verdicts.filter((v) => v === 'PASS' || v === 'FAIL');
+  const judged = steps.filter((s) => s.part !== 'wait-end' && (s.verdict === 'PASS' || s.verdict === 'FAIL')).map((s) => s.verdict);
+  const verdict = judged.length ? judged.reduce((w, v) => (RANK[v] > RANK[w] ? v : w)) : null;
+  if (!verdict) problems.push(`${c.id}: no step made a PASS/FAIL claim`);
+  else if (c.verdict !== verdict) problems.push(`${c.id}: fragment says ${c.verdict} but its steps say ${verdict}`);
   const passed = judged.filter((v) => v === 'PASS').length;
   const text = say.criteria?.[c.id] ?? {};
+  for (const [k, v] of Object.entries(text)) {
+    if (typeof v !== 'string') problems.push(`narration.criteria.${c.id}.${k} must be a string`);
+  }
+  // The spoken verdict must say the verdict the steps produced, so stale narration from an
+  // earlier take can never announce PASS over a FAIL card (or the other way round).
+  if (verdict && typeof text.verdict === 'string' && !new RegExp(verdict === 'PASS' ? '\\bpass' : '\\bfail', 'i').test(text.verdict)) {
+    problems.push(`narration.criteria.${c.id}.verdict does not say "${verdict === 'PASS' ? 'pass' : 'fail'}", but the steps say ${verdict}`);
+  }
   return {
     id: c.id,
     title: k.title ?? c.title,
     ...(k.source ? { source: k.source } : {}),
     ...(k.proof ? { proof: k.proof } : {}),
-    verdict: c.verdict,
+    verdict,
     note: text.note ?? `${passed} of ${judged.length} checked step${judged.length === 1 ? '' : 's'} passed`,
     ...(text.card ? { narration: text.card } : {}),
     ...(text.verdict ? { verdictNarration: text.verdict } : {}),
@@ -81,7 +114,7 @@ const chapters = (frag.chapters ?? []).map((c) => {
       return {
         // Fragment paths are relative to the directory the recorder ran in (baseDir); re-base them
         // on the manifest's directory.
-        path: relative(outDir, resolve(frag.baseDir ?? dirname(fragDir), s.path)).replace(/\\/g, '/'),
+        path: relative(outDir, resolve(frag.baseDir, s.path)).replace(/\\/g, '/'),
         startSeconds: s.startSeconds,
         seconds: s.seconds,
         caption: s.caption ?? '',
@@ -90,6 +123,9 @@ const chapters = (frag.chapters ?? []).map((c) => {
     }),
   };
 });
+for (const key of Object.keys(say.criteria ?? {})) {
+  if (!frag.chapters.some((c) => c.id === key)) problems.push(`narration.criteria.${key} matches no criterion in this take`);
+}
 if (problems.length) fail(`refusing to build a manifest:\n  ${problems.join('\n  ')}`);
 for (const key of Object.keys(say.steps ?? {})) {
   if (!usedSteps.has(key)) console.warn(`workbench-manifest: narration for "${key}" matches no step in this take`);

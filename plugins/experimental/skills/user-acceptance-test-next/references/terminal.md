@@ -78,7 +78,9 @@ uat-http --step AC2 --method PUT --url "$base/Patient/$id65" \
   the wire). Values over 100 characters are shortened on screen (`aaaa… ‹2049 chars›`);
   the evidence JSON keeps them whole.
 - `--evidence evidence` (set by `uat-env`) saves the redacted exchange as JSON for the report.
-- At least one `--expect-*` is required: a step without an assertion cannot give a verdict.
+- At least one `--expect-*` or `--reject-body` is required: a step without an assertion cannot give a verdict.
+  Empty expectations (`--expect-body ""`, an empty `~=` pattern) are rejected as ERROR, since
+  they match anything; an unset shell variable is the usual cause.
   For a supporting request that only shows state (for example a GET before the change),
   pass `--no-assert`; it ends with `UAT_STEP <step> SHOWN`, so wait on
   `/UAT_STEP <step> (SHOWN|ERROR)/` and never count it as a verdict.
@@ -110,6 +112,10 @@ uat-log --step AC3 --file app.log --pattern "OrderCreated id=" --run node $UatHt
   check might fail, so the video shows what *was* logged, not just "no matching lines".
 - When the action is several typed commands, record the starting point in the hidden setup
   with `uat-log --mark ac6.mark --file app.log`, and check later with `--since ac6.mark`.
+- If the log is truncated or recreated during the check (an app restarted with `> app.log`),
+  log-step notices and reads it from the beginning, saying so on screen. A log file that does
+  not exist when the check runs, or is not UTF-8 (Windows PowerShell 5.1's `>` writes UTF-16),
+  is ERROR: absence can only be proven by reading a real log.
 - Long log lines are shortened on screen past `--max-line` characters (default 400); the
   evidence keeps them whole.
 - Logs must land in a file. When launching locally, redirect the app's output
@@ -131,8 +137,11 @@ node <skill-dir>/scripts/docs-step.mjs --step AC9 --base <merge-base sha or @mer
   --check "docs/SemanticSearch.md::8,192-token" --evidence evidence
 ```
 
-Get the base with `git merge-base <target branch> HEAD` (fetch the target first). Paths are
-repository-relative. Pair it with the rendered page (browser path) when rendering matters, for
+Get the base with `git merge-base <target branch> HEAD` (fetch the target first); the helper
+diffs from the merge base of `--base` and `--head` anyway, detects renames, and ignores
+line-ending-only changes, so a moved or re-saved doc does not count as new text. A paragraph
+moved in from another file still counts; check its origin by hand. Paths are
+repository-relative; a path that does not exist at `--head` is ERROR. Pair it with the rendered page (browser path) when rendering matters, for
 example a docs site, a README table, or an OpenAPI description.
 
 ### Focused tests

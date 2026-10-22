@@ -74,18 +74,44 @@ function validateRunnable(c, label) {
   if (c.timeoutSeconds !== undefined && !(Number(c.timeoutSeconds) > 0)) fail(`${label}: timeoutSeconds must be a positive number`);
 }
 
+function nonNegative(v) {
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0;
+}
+
+function validateCellExtras(c, label) {
+  if (c.step !== undefined && (typeof c.step !== 'string' || !/^\S{1,64}$/.test(c.step))) fail(`${label}: step must be a string without spaces`);
+  if (c.criterion !== undefined && (typeof c.criterion !== 'string' || !c.criterion)) fail(`${label}: criterion must be a non-empty string`);
+  for (const k of ['readSeconds', 'holdSeconds']) {
+    if (c[k] !== undefined && !nonNegative(c[k])) fail(`${label}: ${k} must be a number >= 0`);
+  }
+  const t = c.trimWait;
+  if (t !== undefined && typeof t !== 'boolean') {
+    if (!t || typeof t !== 'object' || Array.isArray(t)) fail(`${label}: trimWait must be true, false or { keepStart, keepEnd }`);
+    for (const k of ['keepStart', 'keepEnd']) {
+      if (t[k] !== undefined && !nonNegative(t[k])) fail(`${label}: trimWait.${k} must be a number of seconds >= 0`);
+    }
+  }
+}
+
 function validate(nb) {
   if (!nb || typeof nb !== 'object') fail('not a JSON object');
   if (!Array.isArray(nb.cells) || nb.cells.length === 0) fail('cells[] is required');
   nb.title = String(nb.title ?? basename(notebookPath));
   nb.subtitle = (Array.isArray(nb.subtitle) ? nb.subtitle : nb.subtitle ? [nb.subtitle] : []).map(String);
   nb.criteria = Array.isArray(nb.criteria) ? nb.criteria : [];
+  const critIds = new Set();
+  for (const [i, k] of nb.criteria.entries()) {
+    if (!k || typeof k !== 'object' || typeof k.id !== 'string' || !k.id) fail(`criteria[${i}] needs a string id`);
+    if (critIds.has(k.id)) fail(`duplicate criterion id ${k.id}`);
+    critIds.add(k.id);
+  }
   const ids = new Set();
   for (const [i, c] of nb.cells.entries()) {
     if (typeof c?.id !== 'string' || !/^[A-Za-z0-9_.-]{1,64}$/.test(c.id)) fail(`cells[${i}].id must match [A-Za-z0-9_.-]{1,64}`);
     if (ids.has(c.id)) fail(`duplicate cell id ${c.id}`);
     ids.add(c.id);
     validateRunnable(c, `cell ${c.id}`);
+    validateCellExtras(c, `cell ${c.id}`);
   }
   for (const c of nb.cells) {
     if (c.criterion && !nb.criteria.some((k) => k.id === c.criterion)) nb.criteria.push({ id: c.criterion, title: '' });
@@ -235,7 +261,9 @@ function ensureSetup() {
 }
 
 const ANSI = /\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g;
-const MARKER = /^\s*UAT_STEP (\S+) (PASS|FAIL|ERROR|SHOWN)\s*$/;
+// Markers start at column 0 (the helpers print them that way), so an indented echo of a marker
+// inside a response body or a log line is never taken as a verdict.
+const MARKER = /^UAT_STEP (\S+) (PASS|FAIL|ERROR|SHOWN)\s*$/;
 const EVIDENCE_LINE = /^\s*evidence: (.+?)\s*$/;
 
 function insideNotebookDir(p) {
@@ -251,6 +279,7 @@ function kindOf(p) {
   if (name.endsWith('.http.json')) return 'http';
   if (name.endsWith('.log.json')) return 'log';
   if (name.endsWith('.browser.json')) return 'browser';
+  if (name.endsWith('.docs.json')) return 'docs';
   return 'other';
 }
 
@@ -260,7 +289,7 @@ function readEvidence(paths, cwd, notBefore) {
   for (const { path: p, declared } of paths) {
     const real = insideNotebookDir(resolve(cwd, p));
     if (!real) {
-      out.push({ kind: kindOf(p), path: p, data: null, error: 'missing or outside the notebook directory; not read' });
+      out.push({ kind: kindOf(p), path: p, declared, data: null, error: 'missing or outside the notebook directory; not read' });
       continue;
     }
     if (seen.has(real)) continue;
@@ -269,17 +298,17 @@ function readEvidence(paths, cwd, notBefore) {
     const st = statSync(real);
     // Declared files (cell.evidence) must have been written by this run, never left over from an earlier one.
     if (declared && st.mtimeMs < notBefore) {
-      out.push({ kind: kindOf(real), path: shown, data: null, error: 'not written by this run; not shown' });
+      out.push({ kind: kindOf(real), path: shown, declared, data: null, error: 'not written by this run; not shown' });
       continue;
     }
     if (st.size > 5 * 1024 * 1024) {
-      out.push({ kind: kindOf(real), path: shown, data: null, error: 'larger than 5 MB; not shown' });
+      out.push({ kind: kindOf(real), path: shown, declared, data: null, error: 'larger than 5 MB; not shown' });
       continue;
     }
     let data = null;
     let error;
     try { data = JSON.parse(readFileSync(real, 'utf8')); } catch (e) { error = `not valid JSON: ${e.message}`; }
-    out.push({ kind: kindOf(real), path: shown, data, ...(error ? { error } : {}) });
+    out.push({ kind: kindOf(real), path: shown, declared, data, ...(error ? { error } : {}) });
   }
   return out;
 }
@@ -333,9 +362,16 @@ async function runCell(cell, res) {
   else if (result.spawnError) { verdict = 'ERROR'; reason = result.spawnError; }
   else if (cell.step) {
     // The cell's verdict is its own step's marker (the outermost helper), never an inner one.
-    const own = markers.filter((m) => m.step === cell.step).at(-1);
-    if (own) verdict = own.verdict;
-    else { verdict = 'ERROR'; reason = `no "UAT_STEP ${cell.step}" marker in the output`; }
+    // Several own markers must agree, and a PASS from a process that then exited non-zero is a
+    // contradiction: both are ERROR, never "the last marker wins".
+    const own = [...new Set(markers.filter((m) => m.step === cell.step).map((m) => m.verdict))];
+    if (own.length === 0) { verdict = 'ERROR'; reason = `no "UAT_STEP ${cell.step}" marker in the output`; }
+    else if (own.length > 1) { verdict = 'ERROR'; reason = `conflicting "UAT_STEP ${cell.step}" markers: ${own.join(', ')}`; }
+    else if (own[0] !== 'FAIL' && result.exitCode !== 0) { verdict = 'ERROR'; reason = `${own[0]} marker but the cell exited with code ${result.exitCode}`; }
+    else verdict = own[0];
+    // A check whose declared evidence is missing or left over from an earlier run proves nothing.
+    const badEvidence = evidence.find((e) => e.declared && e.error && e.error !== 'larger than 5 MB; not shown');
+    if (verdict === 'PASS' && badEvidence) { verdict = 'ERROR'; reason = `declared evidence ${badEvidence.path}: ${badEvidence.error}`; }
   } else {
     // A cell without a step makes no claim: it only shows real output.
     verdict = result.exitCode === 0 ? 'SHOWN' : 'ERROR';

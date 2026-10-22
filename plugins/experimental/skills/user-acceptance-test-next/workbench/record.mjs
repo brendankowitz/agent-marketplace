@@ -2,14 +2,17 @@
 // Records the UAT workbench with Playwright: opens the notebook UI served by server.mjs, then for
 // each cell focuses it, holds for reading time, really clicks its Run button, waits for the real
 // run to finish, and holds on the results. Writes the video, a timeline (seconds from video
-// start) and a manifest fragment for scripts/assemble-uat-video.mjs.
+// start) and a manifest fragment (<out>.manifest-fragment.json) for scripts/workbench-manifest.mjs,
+// which turns it into the assembler's manifest.
 //
 //   node record.mjs --url http://127.0.0.1:4317 --out clips/workbench.webm --timeline workbench-timeline.json
-//                   [--cells id1,id2] [--hold 6] [--width 1920 --height 1080] [--overview 3] [--headed]
+//                   [--cells id1,id2] [--hold 6] [--read 2.5] [--overview 3] [--summary 5]
+//                   [--width 1920 --height 1080] [--headed]
 //
 // Run it from a directory where `playwright` is installed (npm install playwright); it is resolved
 // from the current working directory, so the skill directory needs no node_modules.
-// Exit codes: 0 the recording completed (whatever the verdicts), 2 the recording itself failed.
+// Exit codes: 0 the recording completed (whatever the verdicts), 2 the recording itself failed or a
+// cell never finished.
 
 import { copyFileSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -59,6 +62,8 @@ const rawDir = path.join(path.dirname(outAbs), `.raw-workbench-${process.pid}`);
 const toPosix = (p) => p.split(path.sep).join('/');
 const round = (n) => Math.round(n * 100) / 100;
 
+// Never leave an earlier take's output behind to be mistaken for this one.
+for (const p of [outAbs, timelineAbs, fragmentAbs]) rmSync(p, { force: true });
 mkdirSync(rawDir, { recursive: true });
 const browser = await chromium.launch({ headless: !opts.headed });
 let context;
@@ -93,6 +98,11 @@ try {
   const wanted = opts.cells ? opts.cells.split(',').map((s) => s.trim()).filter(Boolean) : notebook.cells.map((c) => c.id);
   const unknown = wanted.filter((id) => !byId.has(id));
   if (unknown.length) throw new Error(`unknown cell id(s): ${unknown.join(', ')}`);
+  // A chapter is one contiguous span of the video, so a criterion's cells must be recorded back
+  // to back; otherwise another criterion's footage would land inside its chapter.
+  const order = wanted.map((id) => byId.get(id).criterion ?? id);
+  const split = order.find((k, i) => i > 0 && k !== order[i - 1] && order.slice(0, i - 1).includes(k));
+  if (split) throw new Error(`criterion ${split}'s cells are not consecutive in the recording order; reorder the notebook or --cells`);
   notebook.criteriaTitles = criteriaTitles;
 
   await page.waitForTimeout(Number(opts.overview) * 1000);
@@ -133,7 +143,10 @@ try {
 
 // Closing the context flushes the video file.
 const video = page?.video();
-try { await context?.close(); } catch { /* already closed */ }
+try { await context?.close(); } catch (e) {
+  // Closing flushes the video; if that fails the file may be truncated, so the take is not usable.
+  if (!fatal) { fatal = e; console.error(`could not close the browser context (video flush): ${e.message}`); }
+}
 await browser.close();
 
 if (video && !fatal) {
@@ -145,7 +158,8 @@ if (video && !fatal) {
 rmSync(rawDir, { recursive: true, force: true });
 if (fatal) process.exit(2);
 
-const RANK = { PASS: 1, ERROR: 2, FAIL: 3 };
+// ERROR ranks worst: a step that produced no result must not hide behind another step's FAIL.
+const RANK = { PASS: 1, FAIL: 2, ERROR: 3 };
 const outRel = toPosix(path.relative(process.cwd(), outAbs));
 writeFileSync(timelineAbs, `${JSON.stringify({
   video: outRel,
@@ -171,13 +185,16 @@ for (const t of timeline) {
   ch.steps.push(t);
   ch.end = Math.max(ch.end, t.endAt);
   ch.start = Math.min(ch.start, t.focusAt);
-  // A cell that never finished counts as ERROR for its criterion, never as "no opinion".
+  // A cell that never finished counts as ERROR for its criterion, never as "no opinion"; so does
+  // any verdict this recorder does not know.
   const v = t.verdict ?? 'ERROR';
-  if (v !== 'SHOWN' && (RANK[v] ?? 0) > (RANK[ch.verdict] ?? 0)) ch.verdict = v;
+  const known = v in RANK ? v : 'ERROR';
+  if (v !== 'SHOWN' && RANK[known] > (RANK[ch.verdict] ?? 0)) ch.verdict = known;
 }
 writeFileSync(fragmentAbs, `${JSON.stringify({
-  note: 'Paste each chapter\'s evidence into the matching chapter of manifest.json: either "evidence" (one span for the whole criterion) or "stepEvidence" (one item per step, back to back, so each step can carry its own narration). verdict is the worst UAT_STEP verdict of the chapter\'s cells; check it against the evidence before using it.',
+  note: 'Build the assembler manifest from this file with scripts/workbench-manifest.mjs: it re-bases paths on baseDir, takes one item per step from stepEvidence, and refuses a take with an ERROR, unfinished or unrecorded step. verdict is the worst UAT_STEP verdict of the chapter\'s cells; check it against the evidence before using it.',
   baseDir: toPosix(process.cwd()),
+  notebook: { title: notebook.title, sha256: notebook.sha256 },
   chapters: chapters.map((c) => ({
     id: c.id,
     title: c.title,
@@ -185,13 +202,14 @@ writeFileSync(fragmentAbs, `${JSON.stringify({
     cells: c.cells,
     evidence: [{ path: outRel, startSeconds: round(c.start), seconds: round(c.end - c.start), caption: '' }],
     // Each step runs from its focus to the next step's focus (the last to the chapter end), so
-    // the items are contiguous and together cover exactly the same span as "evidence". A step
-    // marked trimWait whose run is long keeps only the start and the end of the wait; the second
-    // item's caption says how much was cut, so the cut is visible in the video.
+    // the items are contiguous and together cover exactly the same span as "evidence". A passing
+    // step marked trimWait whose run is long keeps only the start and the end of the wait; the
+    // second item's caption says how much was cut, so the cut is visible in the video. A step that
+    // did not pass is never trimmed: the middle of its wait may be what explains the failure.
     stepEvidence: c.steps.flatMap((t, i) => {
       const end = i + 1 < c.steps.length ? c.steps[i + 1].focusAt : c.end;
       const base = { path: outRel, caption: '', step: `${i + 1}/${c.steps.length}`, cellId: t.cellId, title: t.title, verdict: t.verdict ?? 'NO RESULT' };
-      const trim = t.trimWait === true ? {} : t.trimWait;
+      const trim = t.verdict === 'PASS' || t.verdict === 'SHOWN' ? (t.trimWait === true ? {} : t.trimWait) : null;
       const keepStart = trim?.keepStart ?? 15;
       const keepEnd = trim?.keepEnd ?? 8;
       const waited = t.doneAt - t.runAt;

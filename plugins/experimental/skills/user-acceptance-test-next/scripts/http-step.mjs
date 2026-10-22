@@ -27,7 +27,7 @@ const HELP = `node http-step.mjs --step AC1 --method PUT --url <url> [options]
                             check a JSON value (repeatable). op: = != > >= < <= ~= (regex).
                             Paths: a.b, a[0].b, a.length, filters a[name=status].valueCode.
                             value may be @file (saved by --save), e.g. entry[0].resource.id!=@first.txt
-                            At least one --expect-* is required, unless --no-assert is given.
+                            At least one --expect-* or --reject-body is required, unless --no-assert is given.
   --no-assert               display-only supporting step: no verdict, ends with UAT_STEP <step> SHOWN
   --select <paths>          show only these response fields, comma separated
   --show-header <name>      response header to display (repeatable)
@@ -72,6 +72,7 @@ try {
   }));
 } catch (e) {
   console.error(`${e.message}\n\n${HELP}`);
+  console.log('UAT_STEP ? ERROR');
   process.exit(2);
 }
 if (opts.help) { console.log(HELP); process.exit(0); }
@@ -99,16 +100,31 @@ function readAtFile(value) {
 if (opts.url.startsWith('@')) opts.url = readAtFile(opts.url).text;
 const hasAssertions = !!opts['expect-status'] || opts['expect-body'].length > 0 || opts['reject-body'].length > 0 || opts['expect-json'].length > 0;
 if (!hasAssertions && !opts['no-assert']) {
-  errorOut('no assertions given: pass --expect-status, --expect-body or --expect-json (or --no-assert for a display-only step)');
+  errorOut('no assertions given: pass --expect-status, --expect-body, --reject-body or --expect-json (or --no-assert for a display-only step)');
 }
-const maxLines = Number.parseInt(opts['max-lines'], 10);
-const timeoutMs = Number.parseFloat(opts.timeout) * 1000;
+// An empty expectation matches every response, so it can only be a mistake (often an unset variable).
+for (const k of ['expect-body', 'reject-body']) {
+  if (opts[k].some((v) => v === '')) errorOut(`--${k} is empty; it would match any body`);
+}
+if (opts['expect-status'] && !opts['expect-status'].split(',').every((s) => /^\d{3}$/.test(s.trim()))) {
+  errorOut(`--expect-status must be 3-digit codes, comma separated: ${opts['expect-status']}`);
+}
+const num = (name, min) => {
+  const v = Number(opts[name]);
+  if (!Number.isFinite(v) || v < min) errorOut(`--${name} must be a number >= ${min}: ${opts[name]}`);
+  return v;
+};
+const maxLines = num('max-lines', 1);
+const timeoutMs = num('timeout', 0.001) * 1000;
 // Parse and validate every --expect-json before sending anything, so a typo is an ERROR (exit 2)
 // rather than a crash after the request.
+// Assertion paths: segments joined by dots, with [n] indexes and [name=value] filters.
+const PATH_SYNTAX = /^(?:[^.[\]=!<>~]+|\[[^\]=]+=[^\]]*\]|\[\d+\])(?:\.[^.[\]=!<>~]+|\[[^\]=]+=[^\]]*\]|\[\d+\])*$/;
 const expectations = opts['expect-json'].map((exp) => {
   const parts = splitExpectation(exp);
   if (!parts || !parts[0]) errorOut(`--expect-json must be <path><op><value> with op one of = != > >= < <= ~=: ${exp}`);
   const [path, op, rawValue] = parts;
+  if (!PATH_SYNTAX.test(path)) errorOut(`--expect-json path is malformed (use a.b, a[0].b, a[name=x].b): ${path}`);
   const { text: value } = readAtFile(rawValue);
   if (op === '~=') {
     try { new RegExp(value); } catch (e) { errorOut(`invalid regex in --expect-json ${exp}: ${e.message}`); }
@@ -125,7 +141,7 @@ function getPath(obj, path) {
     if (v === undefined || v === null) return undefined;
     if (m[1] !== undefined) {
       if (!Array.isArray(v)) return undefined;
-      v = v.find((x) => x !== null && typeof x === 'object' && String(x[m[1]]) === m[2]);
+      v = v.find((x) => x !== null && typeof x === 'object' && x[m[1]] !== undefined && String(x[m[1]]) === m[2]);
     } else {
       v = v[m[3] !== undefined ? Number(m[3]) : m[4]];
     }
@@ -180,7 +196,9 @@ if (opts['bearer-env']) {
 }
 let body;
 if (opts.body !== undefined) {
-  body = opts.body.startsWith('@') ? readFileSync(resolve(opts.body.slice(1)), 'utf8') : opts.body;
+  if (opts.body.startsWith('@')) {
+    try { body = readFileSync(resolve(opts.body.slice(1)), 'utf8'); } catch (e) { errorOut(`could not read --body file: ${e.message}`); }
+  } else body = opts.body;
 }
 const method = opts.method.toUpperCase();
 if (opts['bearer-env']) sentHeaders.push(['Authorization', '‹redacted›']);
@@ -194,10 +212,10 @@ console.log(`${c.cyan('→')} ${c.bold(method)} ${opts.url}`);
 for (const [k, v] of redact(sentHeaders)) console.log(c.dim(`  ${k}: ${shortValue(v)}`));
 if (body !== undefined) console.log(indent(limit(pretty(body))));
 
-const pollSeconds = opts.poll ? Number.parseFloat(opts.poll) : 0;
+const pollSeconds = opts.poll ? num('poll', 0.001) : 0;
 if (pollSeconds && !hasAssertions) errorOut('--poll needs at least one assertion to wait for');
 const pollDeadline = Date.now() + pollSeconds * 1000;
-const pollInterval = Number.parseFloat(opts['poll-interval']) * 1000;
+const pollInterval = num('poll-interval', 0.05) * 1000;
 
 let started;
 let response;
@@ -221,7 +239,8 @@ for (let attempt = 1; ; attempt++) {
     console.log(c.red(c.bold(`UAT_STEP ${step} FAIL`)));
     process.exit(1);
   }
-  if (!pollSeconds || evaluate().every((r) => r.pass) || Date.now() >= pollDeadline) break;
+  // Stop when the next attempt would start after the deadline, so a late success never counts.
+  if (!pollSeconds || evaluate().every((r) => r.pass) || Date.now() + pollInterval > pollDeadline) break;
   const pending = evaluate().filter((r) => !r.pass).map((r) => r.check).join('; ');
   console.log(c.dim(`← ${response.status} ${response.statusText} (attempt ${attempt}; waiting for: ${pending.length > 110 ? `${pending.slice(0, 107)}…` : pending})`));
   await new Promise((r) => setTimeout(r, pollInterval));
@@ -299,6 +318,7 @@ function evaluate() {
   }
   for (const { path, op, rawValue } of expectations) {
     const { text: raw } = readAtFile(rawValue);
+    if (op === '~=' && raw === '') errorOut(`--expect-json ${path}~= has an empty pattern, which matches anything`);
     const got = json.ok ? getPath(json.value, path) : undefined;
     // When the actual value is a string, compare as text (unless the expectation is a quoted JSON
     // string), so ids such as "123" match a literal 123 or a value saved by --save.

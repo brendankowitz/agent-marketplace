@@ -85,7 +85,7 @@ For each criterion choose the proof a viewer would find convincing:
 
 The **workbench** (`workbench/`) is a notebook-style page recorded with Playwright: each cell
 explains a step, shows the command, runs it for real on a click, and renders the evidence as
-request/response, log and SQL cards with a live PASS/FAIL sidebar. Prefer it for anything
+request/response, log, docs and browser cards with a live PASS/FAIL sidebar. Prefer it for anything
 command- or API-shaped. VHS terminal tapes (`references/terminal.md`) remain an alternative
 when the user wants a plain terminal look.
 
@@ -109,8 +109,8 @@ approve the plan and environment in one question.** Reuse anything they already 
   you use terminal tapes. Ask before installing anything.
 - Start or reach the environment. When you start it, send its logs to a file in the working
   directory so log criteria can be shown.
-- **Preflight every step without recording**: run each `uat-http` / `uat-log` command and
-  each browser scenario once. Fix wrong URLs, selectors and data, but never the expectation. If
+- **Preflight every step without recording**: run each helper command (`scripts/http-step.mjs`,
+  `log-step.mjs`, `docs-step.mjs`) and each browser scenario once. Fix wrong URLs, selectors and data, but never the expectation. If
   the software does not meet a criterion, that is the result: keep the step as it is and
   record the FAIL.
 - If preflight shows a criterion cannot run (missing feature flag, service down, no access),
@@ -135,8 +135,9 @@ approve the plan and environment in one question.** Reuse anything they already 
   more cells per criterion, every claim through a helper or script that prints `UAT_STEP`),
   start `workbench/server.mjs`, and record the whole notebook in one take with
   `workbench/record.mjs`; it writes a manifest fragment with each criterion's and each step's
-  span. Mark cells that mostly wait (job polling, server start) `trimWait`, and the long middle
-  of the wait is cut and labeled in the video automatically.
+  span. Keep each criterion's cells consecutive. Mark cells that mostly wait (job polling,
+  server start) `trimWait`, and the long middle of a passing wait is cut and labeled in the
+  video automatically.
   **Read `workbench/README.md`, and `references/terminal.md` for the helpers' options.**
 - Browser criteria: the Playwright template. **Read `references/browser.md`.**
 - Terminal look instead of the workbench: VHS tapes, one per criterion. **Read `references/terminal.md`.**
@@ -146,7 +147,7 @@ Record from a known starting state (for example a fresh database), so steps such
 fix it and record the whole take again rather than splicing runs.
 
 Take each verdict from the step's `UAT_STEP <id> PASS|FAIL|ERROR` marker and evidence JSON
-(`evidence/*.http.json`, `*.log.json`, `*.browser.json`), not from your impression of the
+(`evidence/*.http.json`, `*.log.json`, `*.docs.json`, `*.browser.json`), not from your impression of the
 output. **ERROR** means the step could not run: it could not connect, a selector or the
 command was wrong, or the scenario threw. Fix the step and re-record; if the environment
 cannot be fixed, the criterion is BLOCKED. A request that was sent and then timed out or
@@ -157,16 +158,19 @@ service healthy, that is the product failing, and it stays FAIL.
 
 For a workbench take, build the manifest with
 `node <skill-dir>/scripts/workbench-manifest.mjs --notebook uat-notebook.json --fragment clips/workbench.webm.manifest-fragment.json [--narration narration.json --voice voice.json] [--music <file>]`:
-one chapter per criterion, one item per step, trimmed waits included. It refuses to build when
-a step ERRORed or never finished. Otherwise write `manifest.json` by hand. Then run
+one chapter per criterion, one item per step, trimmed waits included. It recomputes each
+verdict from the steps and refuses to build when a step ERRORed, never finished or is missing
+from the take, or when the fragment came from a different notebook. Otherwise write
+`manifest.json` by hand. Then run
 `node <skill-dir>/scripts/assemble-uat-video.mjs manifest.json`.
 Then **read the extracted frames** and confirm that each one shows what its verdict claims,
 that the text is legible, and that no secrets or unapproved data are visible.
 **Read `references/assembly.md`.**
 
 **Narration is optional.** Offer it; add it only if the user wants it. Write `narration.json`
-**after** the run, from the evidence files: a line per criterion card and per step, using the
-observed values. With a `voice` section the assembler speaks the texts (Azure AI Speech with the
+**after** the run, from the evidence files: `title`, `summary`, a card, verdict and note per
+criterion, and a line per step, using the observed values (schema in `references/assembly.md`).
+With a `voice` section the assembler speaks the texts (Azure AI Speech with the
 user's login or a key, or the OS voice offline) and lengthens cards and clips to fit. Narration
 describes what is on screen and states a verdict only on the verdict card, after the evidence.
 Without `voice` the video is silent. A `music` section adds an optional background track,

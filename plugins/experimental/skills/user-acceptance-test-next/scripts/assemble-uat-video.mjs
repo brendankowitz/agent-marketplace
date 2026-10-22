@@ -192,9 +192,16 @@ async function normalizeClip(ctx, name, item, caption) {
     vf += `,drawtext=fontfile=${ctx.fontArg}:textfile=${file}:expansion=none:fontsize=${size}:fontcolor=${ffColor(FG)}:x=${Math.round(W * 0.03)}:y=${H - barH}+(${barH}-text_h)/2`;
   }
   const isImage = IMAGE_EXT.has(extname(src).toLowerCase());
+  const start = item.startSeconds ?? 0;
+  const sourceSeconds = isImage ? null : probeDuration(src);
   const clipSeconds = isImage
     ? item.seconds ?? 5
-    : item.seconds ?? Math.max(0.1, probeDuration(src) - (item.startSeconds ?? 0));
+    : item.seconds ?? Math.max(0.1, sourceSeconds - start);
+  // A range past the end of the recording would silently play a shorter clip (or a frozen frame
+  // under narration) that looks like evidence it is not.
+  if (!isImage && start + clipSeconds > sourceSeconds + 0.25) {
+    fail(`evidence ${item.path}: ${start}s + ${clipSeconds}s runs past the end of the recording (${sourceSeconds.toFixed(2)}s)`);
+  }
   const input = isImage
     ? ['-loop', '1', '-framerate', String(ctx.fps), '-t', String(clipSeconds), '-i', src]
     : [...(item.startSeconds ? ['-ss', String(item.startSeconds)] : []), '-t', String(clipSeconds), '-i', src];
@@ -229,6 +236,15 @@ function loadManifest(manifestPath) {
     c.evidence = (c.evidence ?? []).map((e) => (typeof e === 'string' ? { path: e } : e));
     if (c.evidence.length === 0 && (c.verdict === 'PASS' || c.verdict === 'FAIL')) {
       fail(`chapter ${c.id} is ${c.verdict} but has no evidence; PASS and FAIL need recorded evidence`);
+    }
+    if ((c.verdict === 'BLOCKED' || c.verdict === 'NOT RUN') && !String(c.note ?? '').trim()) {
+      fail(`chapter ${c.id} is ${c.verdict} and needs a "note" saying why`);
+    }
+    for (const [j, e] of c.evidence.entries()) {
+      const where = `chapter ${c.id} evidence ${j}`;
+      if (!e || typeof e.path !== 'string' || !e.path) fail(`${where} needs a "path"`);
+      if (e.startSeconds !== undefined && !(Number.isFinite(e.startSeconds) && e.startSeconds >= 0)) fail(`${where}: startSeconds must be a number >= 0`);
+      if (e.seconds !== undefined && !(Number.isFinite(e.seconds) && e.seconds > 0)) fail(`${where}: seconds must be a number > 0`);
     }
   }
   return { m, baseDir: dirname(abs) };

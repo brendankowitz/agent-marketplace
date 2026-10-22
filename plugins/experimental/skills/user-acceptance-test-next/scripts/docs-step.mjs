@@ -6,25 +6,37 @@
 //     --check "docs/SemanticSearch.md::disabled\s+by default" \
 //     --check "docs/SemanticSearch.md::8,192-token" --evidence evidence
 //
-// Paths are repository-relative (from the repo root, wherever this runs inside the repo).
-// Exit codes: 0 pass, 1 a statement is missing, 2 usage or git error.
+// Paths are repository-relative (from the repo root, wherever this runs inside the repo). Lines
+// are compared against the merge base of --base and --head (git's three-dot diff), renames are
+// detected, and line-ending-only changes are ignored, so only text this change wrote counts. A
+// paragraph moved from another file still counts as added; check its source by hand.
+// Exit codes: 0 pass, 1 a statement is missing, 2 usage or git error (including a path that
+// does not exist at --head).
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-const { values: o } = parseArgs({
-  options: {
-    step: { type: 'string' },
-    base: { type: 'string' },
-    head: { type: 'string', default: 'HEAD' },
-    check: { type: 'string', multiple: true, default: [] },
-    flags: { type: 'string', default: 'i' },
-    evidence: { type: 'string' },
-    'no-color': { type: 'boolean', default: false },
-  },
-});
+const { values: o } = (() => {
+  try {
+    return parseArgs({
+      options: {
+        step: { type: 'string' },
+        base: { type: 'string' },
+        head: { type: 'string', default: 'HEAD' },
+        check: { type: 'string', multiple: true, default: [] },
+        flags: { type: 'string', default: 'i' },
+        evidence: { type: 'string' },
+        'no-color': { type: 'boolean', default: false },
+      },
+    });
+  } catch (e) {
+    console.log(`✗ ${e.message}`);
+    console.log('UAT_STEP ? ERROR');
+    return process.exit(2);
+  }
+})();
 const useColor = !o['no-color'] && !process.env.NO_COLOR && (process.stdout.isTTY || !!process.env.FORCE_COLOR);
 const paint = (code) => (s) => (useColor ? `\x1b[${code}m${s}\x1b[0m` : s);
 const c = { dim: paint('2'), bold: paint('1'), red: paint('31'), green: paint('32'), blue: paint('34') };
@@ -47,23 +59,46 @@ const files = new Map();
 for (const spec of o.check) {
   const i = spec.indexOf('::');
   if (i <= 0) errorOut(`--check must be "path::regex": ${spec}`);
-  const file = spec.slice(0, i);
+  const file = spec.slice(0, i).replace(/\\/g, '/').replace(/^\.\//, '');
+  if (!spec.slice(i + 2).trim()) errorOut(`--check has an empty regex, which matches any line: ${spec}`);
   let re;
   try { re = new RegExp(spec.slice(i + 2), o.flags.replace(/[gy]/g, '')); } catch (e) { errorOut(`invalid regex in ${spec}: ${e.message}`); }
   if (!files.has(file)) files.set(file, []);
   files.get(file).push(re);
 }
 
+const git = (args) => execFileSync('git', ['-c', 'core.quotePath=false', '-c', 'diff.relative=false', '--no-pager', ...args], {
+  encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 512 * 1024 * 1024,
+});
+// Diff the whole tree with rename detection, then keep each file's added lines. Limiting the diff
+// to the file would hide a rename, and every line of a moved doc would count as "added".
+let diff;
+try {
+  diff = git(['diff', '-U0', '-M', '--ignore-cr-at-eol', '--no-color', '--no-ext-diff', '--no-textconv', `${base}...${o.head}`]);
+} catch (e) {
+  errorOut(`git diff ${base}...${o.head} failed: ${(e.stderr || e.message).toString().trim().split('\n')[0]}`);
+}
+const addedByFile = new Map();
+let current = null;
+let inHunk = false;
+for (const line of diff.split('\n')) {
+  if (line.startsWith('diff --git ')) { current = null; inHunk = false; continue; }
+  if (!inHunk && line.startsWith('+++ ')) {
+    let p = line.slice(4).replace(/\t$/, '');
+    if (p.startsWith('"')) { try { p = JSON.parse(p); } catch { /* keep as written */ } }
+    current = p === '/dev/null' ? null : p.replace(/^b\//, '');
+    if (current) addedByFile.set(current, []);
+    continue;
+  }
+  if (line.startsWith('@@')) { inHunk = true; continue; }
+  if (inHunk && current && line.startsWith('+')) addedByFile.get(current).push(line.slice(1).replace(/\r$/, ''));
+}
+
 const results = [];
 const shown = [];
 for (const [file, patterns] of files) {
-  let diff;
-  try {
-    diff = execFileSync('git', ['--no-pager', 'diff', '-U0', base, o.head, '--', `:(top)${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-  } catch (e) {
-    errorOut(`git diff failed for ${file}: ${(e.stderr || e.message).toString().trim().split('\n')[0]}`);
-  }
-  const added = diff.split('\n').filter((l) => l.startsWith('+') && !l.startsWith('+++')).map((l) => l.slice(1));
+  try { git(['cat-file', '-e', `${o.head}:${file}`]); } catch { errorOut(`${file} does not exist at ${o.head} (paths are relative to the repository root)`); }
+  const added = addedByFile.get(file) ?? [];
   console.log(`${c.bold(c.blue(`── ${file}`))} ${c.dim(`(+${added.length} lines added by this change)`)}`);
   for (const re of patterns) {
     const hit = added.find((l) => re.test(l));

@@ -41,7 +41,15 @@ const SCENARIO = async ({ page, ui, check }) => {
 };
 // ---------------------------------------------------------------------------------------------
 
-const { values: opts } = parseArgs({
+// Setup problems are the step's ERROR (exit 2 with a marker), never a crash a caller reads as FAIL.
+const setupError = (message) => {
+  console.error(message);
+  console.log(`UAT_STEP ${process.argv.includes('--step') ? process.argv[process.argv.indexOf('--step') + 1] : '?'} ERROR`);
+  process.exit(2);
+};
+let opts;
+try {
+  ({ values: opts } = parseArgs({
   options: {
     step: { type: 'string' },
     'base-url': { type: 'string' },
@@ -54,11 +62,9 @@ const { values: opts } = parseArgs({
     headed: { type: 'boolean', default: false },
     'slow-mo': { type: 'string', default: '150' },
   },
-});
-if (!opts.step) {
-  console.error('--step is required');
-  process.exit(2);
-}
+  }));
+} catch (e) { setupError(e.message); }
+if (!opts.step) setupError('--step is required');
 const step = opts.step;
 const size = { width: Number(opts.width), height: Number(opts.height) };
 const outDir = resolve(opts.out);
@@ -70,17 +76,25 @@ mkdirSync(evidenceDir, { recursive: true });
 const checks = [];
 const network = [];
 const consoleErrors = [];
-const apiPattern = opts.api ? new RegExp(opts.api) : null;
+let apiPattern = null;
+try { apiPattern = opts.api ? new RegExp(opts.api) : null; } catch (e) { setupError(`invalid --api: ${e.message}`); }
 class StopScenario extends Error {}
 
-const browser = await chromium.launch({ headless: !opts.headed, slowMo: Number(opts['slow-mo']) });
-const context = await browser.newContext({
+let browser;
+let context;
+try {
+  browser = await chromium.launch({ headless: !opts.headed, slowMo: Number(opts['slow-mo']) });
+  context = await browser.newContext({
   baseURL: opts['base-url'],
   viewport: size,
   deviceScaleFactor: 1,
   recordVideo: { dir: rawDir, size },
   ...(opts['storage-state'] ? { storageState: resolve(opts['storage-state']) } : {}),
-});
+  });
+} catch (e) {
+  await browser?.close();
+  setupError(`could not start the browser: ${e.message.split('\n')[0]}`);
+}
 const page = await context.newPage();
 
 // Overlays live in a closed shadow root: Playwright locators do not pierce closed shadow roots,
@@ -103,7 +117,8 @@ await context.addInitScript(() => {
   });
 });
 let currentCaption = null;
-const overlay = (fn, arg) => page.evaluate(fn, arg).catch(() => {});
+// An overlay can fail while a page navigates; log it, since a missing caption changes what the video shows.
+const overlay = (fn, arg) => page.evaluate(fn, arg).catch((e) => console.error(`overlay not drawn: ${String(e.message ?? e).split('\n')[0]}`));
 const drawCaption = (c) => overlay(({ text, color }) => {
   const root = window.__uatOverlayRoot();
   let el = root.getElementById('caption');
@@ -175,7 +190,9 @@ const ui = {
   clearHighlights: () => overlay(() => window.__uatOverlayRoot().querySelectorAll('.highlight').forEach((e) => e.remove())),
 };
 
+let pendingChecks = 0;
 async function check(name, fn) {
+  pendingChecks++;
   try {
     await fn();
     checks.push({ check: name, pass: true });
@@ -186,6 +203,8 @@ async function check(name, fn) {
     await ui.caption(`✗ ${step} · ${name}: ${checks.at(-1).error}`.slice(0, 160), '#f85149');
     await ui.pause(3000);
     throw new StopScenario();
+  } finally {
+    pendingChecks--;
   }
 }
 
@@ -194,6 +213,9 @@ let error = null;
 try {
   await SCENARIO({ page, ui, check });
   if (checks.length === 0) throw new Error('scenario made no check() calls; a verdict needs at least one');
+  if (pendingChecks) throw new Error('a check() was not awaited; await every check so the verdict includes it');
+  // A failed check whose StopScenario the scenario caught (try/catch, .catch, allSettled) still fails.
+  if (checks.some((x) => !x.pass)) throw new StopScenario();
   await ui.clearHighlights();
   await ui.caption(`✓ ${step} PASS · ${checks.length} check(s)`, '#2ea043');
   await ui.pause(1500);

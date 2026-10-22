@@ -12,7 +12,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
@@ -64,7 +64,7 @@ function systemVoice(voice, text, out) {
   let r;
   if (process.platform === 'win32') {
     // Text travels through an environment variable, never through the command line.
-    const ps = "Add-Type -AssemblyName System.Speech; $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; " +
+    const ps = "$ErrorActionPreference = 'Stop'; Add-Type -AssemblyName System.Speech; $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; " +
       "if ($env:UAT_TTS_VOICE) { $s.SelectVoice($env:UAT_TTS_VOICE) }; $s.Rate = [int]$env:UAT_TTS_RATE; " +
       '$s.SetOutputToWaveFile($env:UAT_TTS_OUT); $s.Speak($env:UAT_TTS_TEXT); $s.Dispose()';
     r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], {
@@ -86,13 +86,22 @@ function systemVoice(voice, text, out) {
 export async function narrate(voice, text, cacheDir) {
   const provider = voice.provider ?? 'azure-speech';
   const ext = provider === 'azure-speech' ? 'mp3' : process.platform === 'darwin' ? 'aiff' : 'wav';
-  const key = createHash('sha256').update(JSON.stringify({ provider, voice: voice.voice, rate: voice.rate, pitch: voice.pitch, style: voice.style, text })).digest('hex').slice(0, 16);
+  const key = createHash('sha256').update(JSON.stringify({ provider, voice: voice.voice, rate: voice.rate, pitch: voice.pitch, style: voice.style, sapiRate: voice.sapiRate, text })).digest('hex').slice(0, 16);
   mkdirSync(cacheDir, { recursive: true });
   const out = join(cacheDir, `${key}.${ext}`);
   if (existsSync(out)) return out;
-  if (provider === 'azure-speech') await azureSpeech(voice, text, out);
-  else if (provider === 'system') systemVoice(voice, text, out);
-  else throw new Error(`unknown voice.provider "${provider}" (azure-speech or system)`);
+  // Synthesize to a temporary file and keep it only when it is complete, so a failed or partial
+  // run never leaves a cached clip that later plays as silence or half a sentence.
+  const tmp = `${out}.${process.pid}.tmp.${ext}`;
+  try {
+    if (provider === 'azure-speech') await azureSpeech(voice, text, tmp);
+    else if (provider === 'system') systemVoice(voice, text, tmp);
+    else throw new Error(`unknown voice.provider "${provider}" (azure-speech or system)`);
+    if (!existsSync(tmp) || statSync(tmp).size === 0) throw new Error('the voice produced no audio');
+    renameSync(tmp, out);
+  } finally {
+    rmSync(tmp, { force: true });
+  }
   return out;
 }
 
@@ -103,7 +112,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     process.exit(2);
   }
   try {
-    const { readFileSync, copyFileSync } = await import('node:fs');
     const voice = JSON.parse(readFileSync(resolve(values.voice), 'utf8'));
     const file = await narrate(voice, values.text, resolve('.narration-cache'));
     if (values.out) copyFileSync(file, resolve(values.out));

@@ -43,24 +43,24 @@ command and its output.
 | Field | Meaning |
 |---|---|
 | `title`, `subtitle[]` | Top bar (repo · commit · environment) |
-| `criteria[{id,title}]` | Sidebar list; a criterion's status is the worst verdict (FAIL > ERROR > PASS) among its cells that have one; SHOWN cells do not count. Cells are grouped by their `criterion` in notebook order: when a criterion has several cells, each cell header reads **AC5 · Step 2 of 2**, the sidebar lists the steps under the active criterion with live ticks, and a short cue (criterion · step · title) appears as the recording moves to each step |
+| `criteria[{id,title}]` | Sidebar list (ids unique). A criterion's status is decided once all its cells have a result: the worst verdict (ERROR > FAIL > PASS) among them; SHOWN cells do not count. Cells are grouped by their `criterion` in notebook order, and a criterion's cells must be consecutive for recording: when a criterion has several cells, each cell header reads **AC5 · Step 2 of 2**, the sidebar lists the steps under the active criterion with live ticks, and a short cue (criterion · step · title) appears as the recording moves to each step |
 | `setup` | Optional hidden step, same shape as a cell. Runs once when the server starts; cells wait for it. Its output never reaches the UI (printed on the server console only if it fails), and if it fails every cell is ERROR |
 | `cells[].id` | Unique, `[A-Za-z0-9_.-]`; the recorder clicks `[data-run="<id>"]` |
 | `criterion` | Criterion id the cell proves |
-| `step` | The `UAT_STEP` id whose marker gives the cell's verdict. With `log-step --run http-step`, use the **outer** (log) step. A cell without `step` makes no claim: SHOWN on exit 0, ERROR otherwise. A cell with `step` but no matching marker is ERROR |
+| `step` | The `UAT_STEP` id whose marker gives the cell's verdict. With `log-step --run http-step`, use the **outer** (log) step and give the inner request its own id. Markers count only at the start of a line. A cell without `step` makes no claim: SHOWN on exit 0, ERROR otherwise. A cell with `step` is ERROR when its marker is missing, when it prints that step's marker with different verdicts, or when it prints PASS/SHOWN and then exits non-zero |
 | `title`, `markdown` | Header and explanation. Markdown subset: paragraphs, headings, lists, `**bold**`, `*em*`, `` `code` ``, `[links](https://…)`, quotes, fenced code. HTML is escaped |
 | `display` | Human-readable command shown in the code block (defaults to the argv joined, or the script) |
 | `command` | argv array, spawned without a shell (`node`, `dotnet`, `git`, …; on Windows `.cmd` shims such as `npm` need `shell`) |
 | `shell` + `script` | `"pwsh"` → `pwsh -NoProfile -NonInteractive -Command <script>`; `"bash"` → `bash -lc <script>` |
 | `cwd` | Relative to the notebook's directory (default: that directory) |
 | `env` | Extra **non-secret** variables. `FORCE_COLOR=1` is always set |
-| `evidence[]` | Optional extra evidence files (relative to `cwd`) to render, e.g. `evidence/AC4.browser.json`; shown only if written during this run. Files printed as `evidence: <path>` by the helpers are picked up automatically |
+| `evidence[]` | Optional extra evidence files (relative to `cwd`) to render, e.g. `evidence/AC4.browser.json`. A declared file that is missing or was not written during this run is shown as an error and turns a PASS into ERROR. Files printed as `evidence: <path>` by the helpers are picked up automatically |
 | `timeoutSeconds` | Default 300; on timeout the process tree is killed and the cell is ERROR |
 | `readSeconds`, `holdSeconds` | Recorder pacing: reading time before the click (default 2.5) and after the result (default `--hold`) |
-| `trimWait` | `true` or `{ "keepStart": 15, "keepEnd": 8 }`, for cells that mostly **wait** (polling a job, starting a server). When the run takes longer than `keepStart + keepEnd + 10` seconds, the fragment's `stepEvidence` keeps only the first and last seconds of the wait and labels the second part, e.g. `AC1 · Step 4 of 5 · 2.1 min of waiting trimmed`. Never set it on a cell whose output during the wait is evidence |
+| `trimWait` | `true` or `{ "keepStart": 15, "keepEnd": 8 }` (seconds, >= 0), for cells that mostly **wait** (polling a job, starting a server). When a passing run takes longer than `keepStart + keepEnd + 10` seconds, the fragment's `stepEvidence` keeps only the first and last seconds of the wait and labels the second part, e.g. `AC1 · Step 4 of 5 · 2.1 min of waiting trimmed`. A step that did not pass is never trimmed. Never set it on a cell whose output during the wait is evidence |
 | `criteria[].source`, `criteria[].proof` | Optional; carried into the video's chapter cards by `scripts/workbench-manifest.mjs` |
 
-Evidence kind comes from the file name: `*.http.json`, `*.log.json`, `*.browser.json`, else a
+Evidence kind comes from the file name: `*.http.json`, `*.log.json`, `*.docs.json`, `*.browser.json`, else a
 generic JSON card. Evidence files are read only when they resolve inside the notebook's directory
 tree, so keep the notebook in the UAT working directory next to `evidence/`.
 
@@ -82,18 +82,18 @@ directory where `playwright` is installed (`npm init -y; npm install playwright;
 node <skill-dir>/workbench/record.mjs --url http://127.0.0.1:4317 --out clips/workbench.webm --timeline workbench-timeline.json
 ```
 
-Options: `--cells id1,id2` (subset and order), `--hold 6`, `--read 2.5`, `--overview 3`,
+Options: `--cells id1,id2` (subset and order; a criterion's cells must stay consecutive), `--hold 6`, `--read 2.5`, `--overview 3`,
 `--summary 5`, `--width 1920 --height 1080`, `--headed`. Flow: overview hold → per cell focus,
 read, real click on Run, wait for `data-state="done"` (timeout `timeoutSeconds + 30`), scroll the
 results into view, hold → results summary overlay. It prints each cell's verdict and exits 0 when
 the recording completed (whatever the verdicts), 2 when the recording failed or a cell never
 finished.
 
-Outputs:
+Outputs (an earlier take's files are deleted first):
 
 - `clips/workbench.webm`: the video.
-- `workbench-timeline.json`: per cell `{cellId, criterion, step, verdict, exitCode, focusAt, runAt, doneAt, endAt}` in seconds from video start. The reference time is taken right after Playwright creates the page (when its video starts), so values can trail the video by a few milliseconds. The video runs a few seconds past `summary.endAt` while the context closes.
-- `clips/workbench.webm.manifest-fragment.json`: one chapter per criterion with `evidence` (one item `{path, startSeconds, seconds, caption: ""}` spanning the first cell's focus to the last cell's end) and `stepEvidence` (one item per step, back to back over the same span, with `step` "2/3", `cellId`, `title` and `verdict`). Use `stepEvidence` when a criterion has several steps, so each step gets its own narration. Its `verdict` is the worst cell marker; check it against the evidence.
+- `workbench-timeline.json`: per cell `{cellId, criterion, step, title, trimWait, verdict, exitCode, focusAt, runAt, doneAt, endAt}` in seconds from video start. The reference time is taken right after Playwright creates the page (when its video starts), so values can trail the video by a few milliseconds. The video runs a few seconds past `summary.endAt` while the context closes.
+- `clips/workbench.webm.manifest-fragment.json`: `baseDir` (the recorder's directory, which fragment paths are relative to), `notebook` (title and sha256), and one chapter per criterion with `evidence` (one item `{path, startSeconds, seconds, caption: ""}` spanning the first cell's focus to the last cell's end) and `stepEvidence` (one item per step, back to back over the same span, with `step` "2/3", `cellId`, `title` and `verdict`; a trimmed wait gives two items, `part` `wait-start` and `wait-end`). Turn it into the assembler's manifest with `scripts/workbench-manifest.mjs` (see `references/assembly.md`), which re-bases the paths and checks the take, rather than copying items by hand.
 
 Automation API (`window.uat`, used by `record.mjs`): `ready()`, `cells()`, `focus(id)`,
 `reveal(id)`, `run(id)` → `{verdict, exitCode}`, `waitDone(id)`, `caption(text|null)`,

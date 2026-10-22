@@ -2,7 +2,7 @@
 
 **Result:** <n> PASS · <n> FAIL · <n> BLOCKED · <n> NOT RUN
 **Tested:** <head commit sha> on <environment: URL or "local build of the PR branch"> at <UTC time>
-**Recorded by:** an AI agent using the `user-acceptance-test` skill; every verdict comes from the run shown in the video.
+**Recorded by:** an AI agent using the `user-acceptance-test-next` skill; every verdict comes from the run shown in the video.
 
 <video: attach the MP4 here; GitHub needs the bare asset URL on its own line>
 
@@ -25,6 +25,6 @@
 <details><summary>How this was run</summary>
 
 - Environment and data: <URL / local build command; synthetic data created and cleaned up>
-- Commands: the tapes and scripts in `<working dir>` reproduce every step.
+- Commands: the notebook, tapes and scripts in `<working dir>` reproduce every step.
 
 </details>

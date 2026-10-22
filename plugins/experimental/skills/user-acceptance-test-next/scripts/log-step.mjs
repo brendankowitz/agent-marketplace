@@ -9,9 +9,28 @@
 // Exit codes: 0 pass, 1 assertion failed (or the command failed), 2 usage error.
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
+
+// Where a log ends now, plus a hash of its first bytes so a rewritten log can be recognised.
+function prefixHash(path, length) {
+  if (!existsSync(path) || statSync(path).size < length) return null;
+  const fd = openSync(path, 'r');
+  try {
+    const buf = Buffer.alloc(length);
+    readSync(fd, buf, 0, length, 0);
+    return createHash('sha256').update(buf).digest('hex');
+  } finally {
+    closeSync(fd);
+  }
+}
+function snapshot(path) {
+  const size = existsSync(path) ? statSync(path).size : 0;
+  const prefixLen = Math.min(size, 4096);
+  return { file: path, size, prefix: prefixLen ? prefixHash(path, prefixLen) : null, prefixLen };
+}
 
 const HELP = `node log-step.mjs --step AC3 --file <log> --pattern <regex> [options] [--run command args...]
 
@@ -84,8 +103,7 @@ function errorOut(message) {
 }
 if (opts.mark) {
   if (!opts.file) errorOut('--mark needs --file');
-  const f = resolve(opts.file);
-  writeFileSync(resolve(opts.mark), String(existsSync(f) ? statSync(f).size : 0), 'utf8');
+  writeFileSync(resolve(opts.mark), JSON.stringify(snapshot(resolve(opts.file))), 'utf8');
   process.exit(0);
 }
 if (!step || !opts.file || !opts.pattern) { console.error(HELP); errorOut('--step, --file and --pattern are required'); }
@@ -100,24 +118,42 @@ const countOk = (n) => (op === '>=' ? n >= wanted : op === '<=' ? n <= wanted : 
 const file = resolve(opts.file);
 const sizeOf = () => (existsSync(file) ? statSync(file).size : 0);
 
+let rewritten = false;
 function readFrom(offset) {
   const size = sizeOf();
+  // A log that is shorter than the start position, or whose first bytes changed, was truncated
+  // or recreated (an app restarted with "> app.log"): read it from the start, never skip it.
+  if (size < offset || (start.prefix && prefixHash(file, start.prefixLen) !== start.prefix)) {
+    if (!rewritten) console.log(c.yellow('  (the log was truncated or recreated since the start position; reading it from the beginning)'));
+    rewritten = true;
+    start = { size: 0, prefix: null, prefixLen: 0 };
+    offset = 0;
+  }
   if (size <= offset) return '';
   const fd = openSync(file, 'r');
   try {
     const buf = Buffer.alloc(size - offset);
     readSync(fd, buf, 0, buf.length, offset);
+    // UTF-16 (Windows PowerShell 5.1's "> file") decodes to text full of NULs that no pattern
+    // matches, which would make an absence check pass without reading anything.
+    if (buf.includes(0)) errorOut(`${opts.file} is not UTF-8 text (UTF-16?); write the log as UTF-8`);
     return buf.toString('utf8');
   } finally {
     closeSync(fd);
   }
 }
 
-let start = sizeOf();
+const timeoutSeconds = Number(opts.timeout);
+if (!Number.isFinite(timeoutSeconds) || timeoutSeconds < 0) errorOut(`--timeout must be a number of seconds: ${opts.timeout}`);
+let start = snapshot(file);
 if (opts.since) {
   if (!existsSync(resolve(opts.since))) errorOut(`--since file not found (run --mark first): ${opts.since}`);
-  start = Number.parseInt(readFileSync(resolve(opts.since), 'utf8'), 10);
-  if (!Number.isFinite(start)) errorOut(`--since file does not hold a position: ${opts.since}`);
+  const text = readFileSync(resolve(opts.since), 'utf8').trim();
+  try {
+    start = /^\d+$/.test(text) ? { size: Number(text), prefix: null, prefixLen: 0 } : JSON.parse(text);
+  } catch { start = null; }
+  if (!Number.isFinite(start?.size) || start.size < 0) errorOut(`--since file does not hold a position: ${opts.since}`);
+  if (start.file && start.file !== file) errorOut(`--since was marked on ${start.file}, not ${file}`);
 }
 let commandFailed = false;
 if (command.length) {
@@ -134,17 +170,19 @@ console.log(c.dim(`  new lines matching /${opts.pattern}/${opts.flags}, expectin
 
 // Wait for matches. Only ">=N" can stop early; an exact count, an upper bound or absence waits the
 // full timeout, otherwise a duplicate arriving later would be missed and falsely PASS.
-const deadline = Date.now() + Number.parseFloat(opts.timeout) * 1000;
+const deadline = Date.now() + timeoutSeconds * 1000;
 const waitFull = op !== '>=';
 let lines = [];
 let matches = [];
 for (;;) {
-  lines = readFrom(start).split(/\r?\n/).filter((l) => l.length);
+  lines = readFrom(start.size).split(/\r?\n/).filter((l) => l.length);
   matches = lines.map((l, i) => [i, l]).filter(([, l]) => regex.test(l));
   if (!waitFull && matches.length >= wanted) break;
   if (Date.now() >= deadline) break;
   await new Promise((r) => setTimeout(r, 250));
 }
+// Nothing read from a file that does not exist proves nothing, least of all an absence.
+if (!existsSync(file)) errorOut(`log file not found: ${file}`);
 
 const context = Number.parseInt(opts.context, 10);
 const max = Number.parseInt(opts.max, 10);
@@ -185,7 +223,7 @@ if (opts.evidence) {
     step, verdict, at: new Date().toISOString(), logFile: resolve(opts.file),
     pattern: opts.pattern, flags: opts.flags, expectCount: opts['expect-count'], timeoutSeconds: Number(opts.timeout),
     command: command.length ? command : null, commandFailed,
-    newLineCount: lines.length, matches: matches.map(([, l]) => l), assertions: results,
+    newLineCount: lines.length, logRewritten: rewritten, matches: matches.map(([, l]) => l), assertions: results,
   }, null, 2)}\n`, 'utf8');
   console.log(c.dim(`  evidence: ${file}`));
 }

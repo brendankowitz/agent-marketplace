@@ -13,7 +13,8 @@
   };
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const RANK = { PASS: 1, ERROR: 2, FAIL: 3 };
+    // ERROR ranks worst: a step that produced no result must not hide behind another step's FAIL.
+  const RANK = { PASS: 1, FAIL: 2, ERROR: 3 };
   const ICON = { PASS: '✓', FAIL: '✗', ERROR: '!', SHOWN: '•', running: '', pending: '', BLOCKED: '!' };
 
   let nb = null;
@@ -351,6 +352,22 @@
     return card;
   }
 
+  function docsCard(ev) {
+    const d = ev.data;
+    const card = h('div', 'card card-log');
+    card.append(cardHead('log', 'DOCS', d, ev.path));
+    const box = h('div', 'log-lines');
+    for (const m of (d.matches ?? []).slice(0, 10)) {
+      const div = h('div', 'log-line');
+      div.innerHTML = `<span class="chars">${esc(m.file)}</span> ${highlightLine(m.line, (() => { try { return new RegExp(m.pattern, 'i'); } catch { return null; } })())}`;
+      box.append(div);
+    }
+    if (!(d.matches ?? []).length) box.append(h('div', 'log-empty', '(no added line matched)'));
+    card.append(box);
+    card.append(assertionsList(d.assertions));
+    return card;
+  }
+
   function otherCard(ev) {
     const card = h('div', 'card card-other');
     card.append(cardHead('other', 'EVIDENCE', ev.data, ev.path));
@@ -364,6 +381,7 @@
     if (ev.kind === 'http') return httpCard(ev);
     if (ev.kind === 'log') return logCard(ev);
     if (ev.kind === 'browser') return browserCard(ev);
+    if (ev.kind === 'docs') return docsCard(ev);
     return otherCard(ev);
   }
 
@@ -381,7 +399,12 @@
     const own = [...cells.values()].filter((c) => c.info.criterion === id);
     if (own.some((c) => c.state === 'running')) return 'running';
     const judged = own.filter((c) => c.verdict && c.verdict !== 'SHOWN');
-    if (judged.length) return judged.reduce((w, c) => ((RANK[c.verdict] ?? 0) > (RANK[w] ?? 0) ? c.verdict : w), 'PASS');
+    // A criterion is only decided once every one of its cells has a result; an unknown verdict
+    // counts as ERROR.
+    if (judged.length && own.every((c) => c.verdict)) {
+      return judged.map((c) => (c.verdict in RANK ? c.verdict : 'ERROR')).reduce((w, v) => (RANK[v] > RANK[w] ? v : w));
+    }
+    if (judged.length) return 'pending';
     if (own.some((c) => c.verdict === 'SHOWN')) return 'SHOWN';
     return 'pending';
   }
