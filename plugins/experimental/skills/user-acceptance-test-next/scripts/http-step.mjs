@@ -22,6 +22,7 @@ const HELP = `node http-step.mjs --step AC1 --method PUT --url <url> [options]
   --bearer-env <VAR>        send "Authorization: Bearer <value of VAR>"; never printed
   --expect-status <codes>   accepted status codes, comma separated (e.g. 201 or 200,204)
   --expect-body <text>      response body must contain text (repeatable)
+  --reject-body <text>      response body must NOT contain text, e.g. a secret or echoed input (repeatable)
   --expect-json <path=val>  JSON value at path must equal val, e.g. id.length=64 (repeatable)
                             At least one --expect-* is required, unless --no-assert is given.
   --no-assert               display-only supporting step: no verdict, ends with UAT_STEP <step> SHOWN
@@ -29,6 +30,9 @@ const HELP = `node http-step.mjs --step AC1 --method PUT --url <url> [options]
   --show-header <name>      response header to display (repeatable)
   --max-lines <n>           truncate displayed bodies after n lines (default 30)
   --timeout <seconds>       request timeout (default 30)
+  --poll <seconds>          for async APIs: re-send every --poll-interval seconds until the status is
+                            one of --expect-status or <seconds> have passed (needs --expect-status)
+  --poll-interval <seconds> delay between polls (default 2)
   --evidence <dir>          write <step>-<n>.http.json with the redacted exchange
   --no-color                disable ANSI colors`;
 
@@ -46,12 +50,15 @@ try {
       'bearer-env': { type: 'string' },
       'expect-status': { type: 'string' },
       'expect-body': { type: 'string', multiple: true, default: [] },
+      'reject-body': { type: 'string', multiple: true, default: [] },
       'expect-json': { type: 'string', multiple: true, default: [] },
       'no-assert': { type: 'boolean', default: false },
       select: { type: 'string' },
       'show-header': { type: 'string', multiple: true, default: [] },
       'max-lines': { type: 'string', default: '30' },
       timeout: { type: 'string', default: '30' },
+      poll: { type: 'string' },
+      'poll-interval': { type: 'string', default: '2' },
       evidence: { type: 'string' },
       'no-color': { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
@@ -75,7 +82,7 @@ function errorOut(message) {
 }
 if (!step) { console.error(HELP); errorOut('--step is required'); }
 if (!opts.url) errorOut('--url is required');
-const hasAssertions = !!opts['expect-status'] || opts['expect-body'].length > 0 || opts['expect-json'].length > 0;
+const hasAssertions = !!opts['expect-status'] || opts['expect-body'].length > 0 || opts['reject-body'].length > 0 || opts['expect-json'].length > 0;
 if (!hasAssertions && !opts['no-assert']) {
   errorOut('no assertions given: pass --expect-status, --expect-body or --expect-json (or --no-assert for a display-only step)');
 }
@@ -105,10 +112,14 @@ function pretty(text) {
 }
 
 const headers = new Headers();
+// Header names as the caller wrote them: fetch sends them with this case, but Headers.entries()
+// lowercases, so display and evidence use this list instead.
+const sentHeaders = [];
 for (const h of opts.header) {
   const i = h.indexOf(':');
   if (i <= 0) errorOut(`header must be "Name: value": ${h}`);
   headers.append(h.slice(0, i).trim(), h.slice(i + 1).trim());
+  sentHeaders.push([h.slice(0, i).trim(), h.slice(i + 1).trim()]);
 }
 if (opts['bearer-env']) {
   const token = process.env[opts['bearer-env']];
@@ -120,32 +131,48 @@ if (opts.body !== undefined) {
   body = opts.body.startsWith('@') ? readFileSync(resolve(opts.body.slice(1)), 'utf8') : opts.body;
 }
 const method = opts.method.toUpperCase();
-const shownHeaders = (h) => [...h.entries()].map(([k, v]) => [k, SECRET_HEADERS.has(k.toLowerCase()) ? '‹redacted›' : v]);
+if (opts['bearer-env']) sentHeaders.push(['Authorization', '‹redacted›']);
+const redact = (pairs) => pairs.map(([k, v]) => [k, SECRET_HEADERS.has(k.toLowerCase()) ? '‹redacted›' : v]);
+const shownHeaders = (h) => redact([...h.entries()]);
+// Long request header values (limit tests) are shortened on screen only; evidence keeps them whole.
+const shortValue = (v) => (v.length > 100 ? `${v.slice(0, 24)}… ${c.yellow(`‹${v.length} chars›`)}` : v);
 
 console.log(c.bold(c.blue(`── ${step} ${'─'.repeat(Math.max(4, 60 - step.length))}`)));
 console.log(`${c.cyan('→')} ${c.bold(method)} ${opts.url}`);
-for (const [k, v] of shownHeaders(headers)) console.log(c.dim(`  ${k}: ${v}`));
+for (const [k, v] of redact(sentHeaders)) console.log(c.dim(`  ${k}: ${shortValue(v)}`));
 if (body !== undefined) console.log(indent(limit(pretty(body))));
 
-const started = performance.now();
+const pollSeconds = opts.poll ? Number.parseFloat(opts.poll) : 0;
+const wantStatus = opts['expect-status'] ? opts['expect-status'].split(',').map((s) => Number.parseInt(s.trim(), 10)) : null;
+if (pollSeconds && !wantStatus) errorOut('--poll needs --expect-status');
+const pollDeadline = Date.now() + pollSeconds * 1000;
+const pollInterval = Number.parseFloat(opts['poll-interval']) * 1000;
+
+let started;
 let response;
 let text;
-try {
-  response = await fetch(opts.url, { method, headers, body, signal: AbortSignal.timeout(timeoutMs), redirect: 'manual' });
-  text = await response.text();
-} catch (e) {
-  const code = e.cause?.code ?? '';
-  const detail = `${e.name === 'TimeoutError' ? `no response within ${opts.timeout}s` : e.message}${code ? ` (${code})` : e.cause?.message ? ` (${e.cause.message})` : ''}`;
-  // Could not reach the service at all: the step or environment is broken, not the product.
-  const CONNECT = /^(ECONNREFUSED|ENOTFOUND|EAI_AGAIN|EHOSTUNREACH|ENETUNREACH|UND_ERR_CONNECT_TIMEOUT|DEPTH_ZERO_SELF_SIGNED_CERT|SELF_SIGNED_CERT_IN_CHAIN|UNABLE_TO_VERIFY_LEAF_SIGNATURE|CERT_HAS_EXPIRED|ERR_TLS_CERT_ALTNAME_INVALID)$/;
-  if (CONNECT.test(code)) errorOut(`could not connect: ${detail}`);
-  // The request was sent but no complete response came back (timeout, reset, crash). When
-  // preflight showed the service healthy, that is a product failure, so it is recorded as FAIL.
-  const results = [{ check: `complete response received: ${detail}`, pass: false }];
-  console.log(c.red(`✗ ${results[0].check}`));
-  writeEvidence({ verdict: 'FAIL', durationMs: Math.round(performance.now() - started), response: null, assertions: results });
-  console.log(c.red(c.bold(`UAT_STEP ${step} FAIL`)));
-  process.exit(1);
+for (let attempt = 1; ; attempt++) {
+  started = performance.now();
+  try {
+    response = await fetch(opts.url, { method, headers, body, signal: AbortSignal.timeout(timeoutMs), redirect: 'manual' });
+    text = await response.text();
+  } catch (e) {
+    const code = e.cause?.code ?? '';
+    const detail = `${e.name === 'TimeoutError' ? `no response within ${opts.timeout}s` : e.message}${code ? ` (${code})` : e.cause?.message ? ` (${e.cause.message})` : ''}`;
+    // Could not reach the service at all: the step or environment is broken, not the product.
+    const CONNECT = /^(ECONNREFUSED|ENOTFOUND|EAI_AGAIN|EHOSTUNREACH|ENETUNREACH|UND_ERR_CONNECT_TIMEOUT|DEPTH_ZERO_SELF_SIGNED_CERT|SELF_SIGNED_CERT_IN_CHAIN|UNABLE_TO_VERIFY_LEAF_SIGNATURE|CERT_HAS_EXPIRED|ERR_TLS_CERT_ALTNAME_INVALID)$/;
+    if (CONNECT.test(code)) errorOut(`could not connect: ${detail}`);
+    // The request was sent but no complete response came back (timeout, reset, crash). When
+    // preflight showed the service healthy, that is a product failure, so it is recorded as FAIL.
+    const results = [{ check: `complete response received: ${detail}`, pass: false }];
+    console.log(c.red(`✗ ${results[0].check}`));
+    writeEvidence({ verdict: 'FAIL', durationMs: Math.round(performance.now() - started), response: null, assertions: results });
+    console.log(c.red(c.bold(`UAT_STEP ${step} FAIL`)));
+    process.exit(1);
+  }
+  if (!pollSeconds || wantStatus.includes(response.status) || Date.now() >= pollDeadline) break;
+  console.log(c.dim(`← ${response.status} ${response.statusText} (attempt ${attempt}; polling until ${wantStatus.join('/')})`));
+  await new Promise((r) => setTimeout(r, pollInterval));
 }
 const ms = Math.round(performance.now() - started);
 
@@ -177,6 +204,10 @@ if (opts['expect-status']) {
 }
 for (const needle of opts['expect-body']) {
   results.push({ check: `body contains ${JSON.stringify(needle)}`, pass: text.includes(needle) });
+}
+for (const needle of opts['reject-body']) {
+  const shown = needle.length > 40 ? `${JSON.stringify(needle.slice(0, 16))}… (${needle.length} chars)` : JSON.stringify(needle);
+  results.push({ check: `body does not contain ${shown}`, pass: !text.includes(needle) });
 }
 for (const exp of opts['expect-json']) {
   const i = exp.indexOf('=');
@@ -211,7 +242,7 @@ function writeEvidence({ verdict: v, durationMs, response: resp, assertions }) {
   const file = join(dir, `${step}-${Date.now()}.http.json`);
   const record = {
     step, verdict: v, at: new Date().toISOString(), durationMs,
-    request: { method, url: opts.url, headers: Object.fromEntries(shownHeaders(headers)), body: body ?? null },
+    request: { method, url: opts.url, headers: Object.fromEntries(redact(sentHeaders)), body: body ?? null },
     response: resp, assertions,
   };
   writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`, 'utf8');

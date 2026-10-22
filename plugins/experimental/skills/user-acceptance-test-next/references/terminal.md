@@ -58,8 +58,15 @@ uat-http --step AC2 --method PUT --url "$base/Patient/$id65" \
 - `--expect-json path=value` compares JSON values; `length` works on strings and arrays
   (`id.length=64`). Display full critical IDs and assert their exact length; similar-looking
   text is not verification.
+- `--reject-body <text>` asserts the body does **not** contain something: an echoed input,
+  a secret, a stack trace.
 - `--select a,b.c` prints only those fields and labels them "selected response fields".
   Use it for large bodies so the important part stays on screen.
+- `--poll <seconds>` re-sends until the status is one of `--expect-status` (async APIs:
+  `$export`, long-running operations), showing each intermediate status on one line.
+- Request headers are shown with their names exactly as sent (that is also how they go on
+  the wire). Values over 100 characters are shortened on screen (`aaaa… ‹2049 chars›`);
+  the evidence JSON keeps them whole.
 - `--evidence evidence` (set by `uat-env`) saves the redacted exchange as JSON for the report.
 - At least one `--expect-*` is required: a step without an assertion cannot give a verdict.
   For a supporting request that only shows state (for example a GET before the change),
@@ -87,7 +94,14 @@ uat-log --step AC3 --file app.log --pattern "OrderCreated id=" --run node $UatHt
 - Everything after `--run` is the action. It runs without a shell, so pass an executable
   (`node`, `pwsh`, `curl`, `dotnet`). `uat-http` is a shell function, so use `node $UatHttp`
   there, as above. Use `--run` rather than a bare `--`: PowerShell drops `--` when it passes
-  arguments through a function such as `uat-log`.
+  arguments through a function such as `uat-log`. If the action exits 2 (a helper's "step is
+  broken" code), the log step reports ERROR, not FAIL.
+- `--show 'AUDIT:'` also displays (dimmed, uncounted) related new lines. Use it whenever a
+  check might fail, so the video shows what *was* logged, not just "no matching lines".
+- When the action is several typed commands, record the starting point in the hidden setup
+  with `uat-log --mark ac6.mark --file app.log`, and check later with `--since ac6.mark`.
+- Long log lines are shortened on screen past `--max-line` characters (default 400); the
+  evidence keeps them whole.
 - Logs must land in a file. When launching locally, redirect the app's output
   (`dotnet run > app.log 2>&1`, `npm start > app.log 2>&1`). For containers, stream them in
   the hidden setup: `docker logs -f <container> > app.log 2>&1 &` (bash) or
@@ -128,10 +142,20 @@ a green test run does not prove what a user sees. Run the narrowest filter
   helpers, so it is safe as long as each step ID is unique in the tape.
 - `Sleep` is reading time after a result: about 1 s per 2–3 lines of important output,
   6–10 s for a response the viewer must read. It is never a substitute for waiting.
-- Keep lines under about 100 columns at 1600×900 and 22 px. Use `--select` and
-  `--max-lines` rather than shrinking the font.
+- **Every scene must fit on one screen.** On Windows, VHS (ttyd + ConPTY) stops updating
+  the screen as soon as output scrolls: the command still runs, but the marker never
+  appears and the wait times out. Hide a `Clear-Host` before each scene (the template shows
+  how), record at 1920×1080 with `FontSize 16` (about 50 rows), and cap output with
+  `--select` and `--max-lines`. Doing the same on macOS and Linux keeps scenes readable too.
+- Keep the typed command readable: put long or noisy values (2048-character strings, header
+  sets, regexes, expected messages) in variables in the hidden setup. The helpers print the
+  real request, pattern and values, so the viewer still sees what was checked.
+- PowerShell turns an unquoted `a,b` into an array, which arrives as separate arguments:
+  quote comma lists (`--select "id,meta.versionId"`). Arrays of arguments can be splatted on
+  purpose (`uat-http --step AC3 @headers`).
 - Start each scene with a comment line (`# AC2: a 65-character id is rejected`) so the
   viewer knows what is being proven before the command runs.
+- Record tapes one at a time when they read the same log file.
 - `Screenshot evidence/AC1.png` after the hold gives the report a still image.
 
 ## Security

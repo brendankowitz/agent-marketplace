@@ -9,7 +9,7 @@
 // Exit codes: 0 pass, 1 assertion failed (or the command failed), 2 usage error.
 
 import { spawnSync } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync, readSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
@@ -23,9 +23,15 @@ const HELP = `node log-step.mjs --step AC3 --file <log> --pattern <regex> [optio
   --timeout <seconds>     how long to wait for matches after the command (default 15). Only >=N
                           stops early; N, <=N and 0 wait the full timeout so late lines count
   --context <n>           also show n non-matching new lines before each match (default 0)
+  --show <regex>          also display (dimmed, not counted) new lines matching this regex, so a
+                          failed check shows what was logged instead, e.g. --show "AUDIT:"
   --max <n>               display at most n matching lines (default 10)
+  --max-line <n>          shorten displayed lines longer than n characters (default 400); evidence keeps them whole
   --allow-command-failure do not fail the step when the command exits non-zero
   --evidence <dir>        write <step>-<n>.log.json with the verdict and matched lines
+  --mark <file>           only record where the log ends now into <file>, then exit (no check)
+  --since <file>          check lines after the position saved by --mark, instead of after "now";
+                          use it when the action is several commands typed between the two calls
   --no-color              disable ANSI colors
   --run command args...   the action to run between the snapshot and the check; everything after
                           --run is the command (no shell; pass an executable such as node or curl)`;
@@ -49,9 +55,13 @@ try {
       'expect-count': { type: 'string', default: '>=1' },
       timeout: { type: 'string', default: '15' },
       context: { type: 'string', default: '0' },
+      show: { type: 'string' },
       max: { type: 'string', default: '10' },
+      'max-line': { type: 'string', default: '400' },
       'allow-command-failure': { type: 'boolean', default: false },
       evidence: { type: 'string' },
+      mark: { type: 'string' },
+      since: { type: 'string' },
       'no-color': { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
     },
@@ -71,6 +81,12 @@ function errorOut(message) {
   console.log(c.red(`✗ ${message}`));
   console.log(`UAT_STEP ${step ?? '?'} ERROR`);
   process.exit(2);
+}
+if (opts.mark) {
+  if (!opts.file) errorOut('--mark needs --file');
+  const f = resolve(opts.file);
+  writeFileSync(resolve(opts.mark), String(existsSync(f) ? statSync(f).size : 0), 'utf8');
+  process.exit(0);
 }
 if (!step || !opts.file || !opts.pattern) { console.error(HELP); errorOut('--step, --file and --pattern are required'); }
 
@@ -97,11 +113,19 @@ function readFrom(offset) {
   }
 }
 
-const start = sizeOf();
+let start = sizeOf();
+if (opts.since) {
+  if (!existsSync(resolve(opts.since))) errorOut(`--since file not found (run --mark first): ${opts.since}`);
+  start = Number.parseInt(readFileSync(resolve(opts.since), 'utf8'), 10);
+  if (!Number.isFinite(start)) errorOut(`--since file does not hold a position: ${opts.since}`);
+}
 let commandFailed = false;
 if (command.length) {
   const r = spawnSync(command[0], command.slice(1), { stdio: 'inherit' });
   if (r.error) errorOut(`could not run ${command[0]}: ${r.error.message}`);
+  // Exit 2 is the helpers' "the step itself is broken" code (usage error, could not connect):
+  // that is an ERROR to fix and re-record, never a product FAIL.
+  if (r.status === 2) errorOut(`the action errored (exit 2): fix the step, then re-record`);
   commandFailed = r.status !== 0;
 }
 
@@ -124,12 +148,25 @@ for (;;) {
 
 const context = Number.parseInt(opts.context, 10);
 const max = Number.parseInt(opts.max, 10);
+const maxLine = Number.parseInt(opts['max-line'], 10);
+const clip = (l) => (l.length > maxLine ? `${l.slice(0, maxLine - 40)}… ${c.yellow(`‹${l.length} chars; full line in evidence›`)}` : l);
 const shown = new Set();
-for (const [i] of matches.slice(0, max)) {
+let showRegex = null;
+if (opts.show) {
+  try { showRegex = new RegExp(opts.show, opts.flags.replace(/[gy]/g, '')); } catch (e) { errorOut(`invalid --show: ${e.message}`); }
+}
+const matchIdx = new Set(matches.map(([i]) => i));
+const display = showRegex
+  ? lines.map((l, i) => i).filter((i) => matchIdx.has(i) || showRegex.test(lines[i]))
+  : matches.map(([i]) => i);
+let matchesShown = 0;
+for (const i of display) {
+  if (!matchIdx.has(i)) { console.log(c.dim(`  ${clip(lines[i])}`)); continue; }
+  if (++matchesShown > max) continue;
   for (let k = Math.max(0, i - context); k < i; k++) {
-    if (!shown.has(k)) { console.log(c.dim(`  ${lines[k]}`)); shown.add(k); }
+    if (!shown.has(k)) { console.log(c.dim(`  ${clip(lines[k])}`)); shown.add(k); }
   }
-  if (!shown.has(i)) { console.log(`  ${c.magenta(lines[i])}`); shown.add(i); }
+  if (!shown.has(i)) { console.log(`  ${c.magenta(clip(lines[i]))}`); shown.add(i); }
 }
 if (matches.length > max) console.log(c.dim(`  … ${matches.length - max} more matching lines`));
 if (matches.length === 0) console.log(c.dim(`  (no matching lines among ${lines.length} new lines)`));
