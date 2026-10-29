@@ -1,7 +1,7 @@
 ---
 name: pr-review-toolkit-next
 description: >
-  Review a pull request, branch, or local changes with a single low-effort pass on a
+  Review a pull request, branch, or local changes with a single reviewer pass on a
   frontier model instead of a fan-out of specialist reviewer agents. Use when asked to
   review a PR or diff with the experimental single-pass reviewer, or to compare it
   against /pr-review-toolkit.
@@ -20,10 +20,12 @@ their reports. Each reviewer re-reads the same diff and surrounding code, so the
 for that context six times, and the specialists' narrow briefs produce overlapping,
 differently scaled findings that the orchestrator has to reconcile.
 
-The hypothesis: **one reviewer with one well-scoped prompt, on the newest frontier model at
-low reasoning effort, catches as many real issues or more, at a fraction of the cost and
-time.** This skill exists to test that on real PRs before anything changes in the stable
-toolkit.
+The hypothesis: **one reviewer with one well-scoped prompt, on the newest frontier model,
+catches as many real issues or more, at a fraction of the cost and time.** This skill exists to
+test that on real PRs before anything changes in the stable toolkit.
+
+Low reasoning effort was tried and dropped. At low effort the reviewer samples a few files of a
+large diff and stops, regardless of the prompt. Medium is the default.
 
 ## Arguments
 
@@ -33,7 +35,8 @@ All optional, in any order:
 - **`model:<alias>`** — `opus`, `sonnet`, `astra`, `sol`, `mai`, `gemini`, each meaning the
   newest model in that family the host offers. Default: the frontier family for the session
   model's provider (`claude-*` → `opus`, `gpt-*` → `astra`, `gemini-*` → `gemini`).
-- **`effort:<level>`** — `low` (default), `medium`, or `high`.
+- **`effort:<level>`** — `medium` (default), `high`, or `low`. Avoid `low` on anything but a
+  small diff; it trades coverage for speed.
 - **`fix`** — apply verified Critical and Important findings after reporting. Without it the
   run is report-only and leaves the tree untouched.
 
@@ -72,7 +75,10 @@ Write your report to ./agent-working/pr-review-<slug>/report.md and reply with i
 
 Pass the resolved model and effort as **dispatch arguments**, not prompt text — a model named
 in the prompt has no effect. If the dispatch mechanism has no effort argument, run without it
-and record `effort: not settable` in the summary. If it has no model argument either, record
+and record `effort: not settable` in the summary. Dispatch a plain one-shot subagent, not a
+named or teammate-style agent: hosts have been seen silently dropping the effort argument for
+those. Where the host exposes the subagent's metadata or transcript, check the effort it
+actually ran at. If it has no model argument either, record
 the session model. Never report a model or effort you did not actually dispatch with; the
 experiment is worthless if the run summary lies about its configuration.
 
