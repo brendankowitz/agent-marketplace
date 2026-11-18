@@ -19,8 +19,14 @@ Some targets need the template bent a little:
   for bots or AI agents that act on issues, comments or pull requests are entry points.
 - **Tests** are not hunt targets. Read them to learn intended behaviour.
 
-You record facts: which entry points pass through a control and which do not. Naming an
-actor and a result for a gap is the hunter's job.
+You record facts: which entry points pass through a control and which do not. Something
+that looks like a lead goes in as a neutral fact with its `file:line`. Naming an actor and a
+result for it is the hunter's job.
+
+Read the section headings of `../references/attack-classes.md` so you can name the sections
+that apply. Cite paths relative to the target root, with line ranges for wide surfaces. Mark
+a control you looked for by search alone and did not find as "search only". If the map runs
+long, cut prose before entry points and controls.
 
 Write the map to the path you were given, in this shape and in about 200 lines:
 
@@ -58,8 +64,9 @@ provider, network policy. Do not guess what they do>
 
 ## Units
 <only when the scope says level deep, otherwise omit this section: 3 to 8 hunt units, each
-one surface or subsystem paired with the class sections that apply to it, most dangerous
-first>
+one surface or subsystem paired with the class sections that apply to it (name the
+sub-classes inside Core), most dangerous first. Units may overlap where two surfaces share
+code>
 ```
 
 Mark anything you inferred without reading the code as "unverified".

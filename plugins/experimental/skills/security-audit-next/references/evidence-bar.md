@@ -10,7 +10,10 @@ Each candidate states all six:
    user, plugin author, a file the service parses, a model's output). The actor must be
    someone other than the party harmed. For a local or developer tool, the person who runs
    it and writes its inputs is trusted; remote systems, downloaded files and other local
-   users are not.
+   users are not. For a library, the host application is trusted and the actor is the
+   host's own untrusted user. A library that silently skips a control its documentation or
+   API promises is a finding when a host following that documentation would be exposed;
+   list the reliance under Conditions.
 2. **Input or action**: the value, request, file, message or state change the system accepts.
 3. **Control**: the check that should have rejected, bound, isolated or limited it, and why
    it does not. Name the strongest control visible on the path, not the weakest.
