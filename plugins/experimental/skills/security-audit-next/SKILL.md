@@ -102,9 +102,9 @@ what repeated runs found, so a clean report means "nothing found in what was exa
 
 ### 0. Establish a protected, unique run
 
-Before creating any worktree, run `git rev-parse --show-toplevel` in the invoking
-repository and resolve `<artifact-root>` once as the absolute path of `agent-working/`
-under that top level. Throughout this skill, its prompts and references, `./agent-working/`
+Before creating any worktree, start at the invoking repository's top level. Confirm it
+with `git rev-parse --show-toplevel` and resolve `<artifact-root>` once as the absolute
+path of `agent-working/` there. In the skill, prompts and references, `./agent-working/`
 means `<artifact-root>`. Pass absolute artifact paths to agents separately from the audited
 source root. Never write artifacts inside a detached source or patched worktree.
 
@@ -149,13 +149,15 @@ worktree, consolidated outputs and the shared learned-rules file. Agents may rea
 source and write only the result file assigned to them in the current run directory. These
 are the only exceptions to the source-only and output-path rules above.
 
-Before creating any source, advisory or patched worktree, list the effective filter
-drivers with `git config --get-regexp '^filter\.'` in the repository. Exit 1 with no output
-means no drivers are defined; any other failure means the config is unreadable. If it is
-unreadable or any `smudge` or `process` driver is defined, stop and ask before creating the
-worktree; do not override drivers. For every `git worktree add` and `git apply` below,
-including the examples, use `git -c core.hooksPath="<dir>"` in place of `git` to disable
-hooks. Use the absolute path of a fresh, empty directory inside the current run directory.
+Use `git --no-pager -c core.hooksPath="<hooks>" -c core.fsmonitor=false` for every
+parent Git command, including examples. Reserve `<hooks>` as an unused absolute path in
+the planned run; create it empty once the guard passes. Add `--no-ext-diff --no-textconv`
+to `git diff`. Before `worktree add`, `apply`, `status` or working-tree diffs, list drivers
+with `git config --get-regexp '^filter\.'`. Exit 1 with no output means none; on any other
+failure stop and ask. For each driver pass `-c filter.<name>.smudge=` and
+`-c filter.<name>.process= -c filter.<name>.clean= -c filter.<name>.required=false` for
+that command only; never change stored config. Record in `scope.md` that filtered files
+were not materialised (LFS pointers stay pointers); list any needed under "Not examined".
 
 Apart from the GitHub PR metadata and diff retrieval above, the only Git fetch allowed is
 for objects needed to resolve the requested PR, branch or advisory commit: for example
@@ -365,13 +367,14 @@ the user the report path, the count for each disposition (`confirmed`, `needs_va
 
 The last two sections separate "looked and found nothing" from "did not look". Include all
 paths that meet the "Also affected" criteria above. Keep unverified sibling or related
-paths and their citations under "Not examined" instead of dropping them. State at the top that
-coverage is partial if the run is `quick` or path-scoped, or if Step 2 produced no accepted
-map. Before writing the report, reconcile every ledger ID to exactly one disposition and
-every in-scope surface/class to examined or not examined. Put all unreconciled scope under
-"Not examined"; label items there `not mapped` if the map missed them or failed. Write
-`None` under either coverage heading only after reconciliation confirms the section is
-empty. For quick-mode severity and confidence, follow the qualification in Step 3.
+paths and their citations under "Not examined" instead of dropping them. State at the top
+that coverage is partial if the run is `quick` or path-scoped, Step 2 produced no accepted
+map, or anything is listed under "Not examined". Before writing the report, reconcile
+every ledger ID to exactly one disposition and every in-scope surface/class to examined
+or not examined. Put all unreconciled scope under "Not examined"; label items there
+`not mapped` if the map missed them or failed. Write `None` under either coverage heading
+only after reconciliation confirms the section is empty. For quick-mode severity and
+confidence, follow the qualification in Step 3.
 
 ## Validating a submitted advisory
 
@@ -429,14 +432,15 @@ source commit and finding match; otherwise stop and ask. Keep the finding's orig
 ledger ID. Add the prior round number and every path left open or not examined to the new
 `scope.md`. Give the reviewer the prior run's accepted review result; never edit that run.
 
-**Check** (finding plus patch). Save the supplied patch as `fix.patch` and create an
-isolated detached worktree at the exact source commit. The parent applies it with `git
-apply` only in that worktree, creating the patched source tree without modifying the target
-checkout. If the patch does not apply cleanly, stop and ask; do not review a partially
-patched tree. Dispatch one fresh agent that has not seen the prior hunt or proposal
-rationale; it does receive the verified finding and sibling paths to examine. If there is
-no proposal, pass `none` for proposed sibling paths and require the reviewer to derive
-variants from the finding and source:
+**Check** (finding plus patch). For a PR or branch, use the Step 0 flags with
+`git diff <recorded source commit> <patch head>` to generate `fix.patch`; otherwise save
+the supplied patch as `fix.patch`. Create an isolated detached worktree at the exact
+source commit. The parent applies the patch with `git apply` only in that worktree,
+without modifying the target checkout. If the patch does not apply cleanly, stop and ask;
+do not review a partially patched tree. Dispatch one fresh agent that has not seen the
+prior hunt or proposal rationale; it does receive the verified finding and sibling paths
+to examine. If there is no proposal, pass `none` for proposed sibling paths and require
+the reviewer to derive variants from the finding and source:
 
 ```
 Follow <skill-dir>/prompts/fix-reviewer.md.
