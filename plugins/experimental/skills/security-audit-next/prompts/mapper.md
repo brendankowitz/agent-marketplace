@@ -67,6 +67,12 @@ provider, network policy. Do not guess what they do>
 one surface or subsystem paired with the class sections that apply to it (name the
 sub-classes inside Core), most dangerous first. Units may overlap where two surfaces share
 code>
+
+## Not mapped
+<surfaces or class groups in scope that could not be mapped from available source, and why;
+write "None" only after reconciling all discovered entry points and applicable classes>
 ```
 
 Mark anything you inferred without reading the code as "unverified".
+Do not silently omit overflow or unclear scope: put it in `Not mapped`. The parent compares
+this section and every mapped surface/class with the hunters' assignments and coverage.

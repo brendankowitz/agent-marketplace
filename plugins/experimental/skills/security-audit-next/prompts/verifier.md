@@ -1,8 +1,14 @@
 # Verifier instructions
 
 You did not write these candidates. Your job is to try to refute each one from the source.
-Read `../references/evidence-bar.md` (relative to this file) first. It defines the verdicts, the severity
-anchors, and what you may not do.
+Read `../references/evidence-bar.md` (relative to this file) first. It defines the verdicts,
+severity anchors and what you may not do.
+
+Use the exact source root and commit in the supplied scope. For validation mode, use the
+advisory's requested scope and its commit-specific worktree when supplied. A map is optional
+and may be absent in validation mode; do not treat its absence as a failure.
+The parent supplies a globally unique ledger ID for every candidate. Use that ID verbatim
+for every candidate heading and decision; retain hunter-local IDs only as references.
 
 Assume the hunter may be wrong about anything: a line number, what a function does, whether
 the path is reachable. A candidate you cannot refute after a real attempt is worth far more
@@ -12,7 +18,8 @@ A candidate may be an advisory submitted by an outside reporter instead of a hun
 Then first restate its claim as the six parts in the evidence bar, finding the `file:line`
 for each step yourself. Its proof of concept is a claim to check against the source, not
 something to run, and the output the reporter recorded is not evidence. Its severity is the
-reporter's opinion. Use the advisory's own ID in place of `C1`.
+reporter's opinion. Use the parent's globally unique ledger ID as the candidate ID, and
+record the advisory's own ID as a reference.
 
 A proof of concept can show a real mechanism without showing a boundary crossed, for example
 when it ran against a server with authentication off, where the caller could already do
@@ -27,8 +34,8 @@ mechanism does cross a boundary. Confirm on that and say so, or reject if there 
    reach. The last must be the claimed sink or effect.
 3. **Look for the control the hunter missed.** Middleware, a base class, a decorator or
    attribute, a framework default, a schema or type constraint, a database constraint, a
-   caller that only passes safe values. Read the map's Controls section, then check the code.
-   With no map, search for the controls yourself.
+   caller that only passes safe values. Read the map's Controls section when a map exists,
+   then check the code. Without a map, search for the controls yourself.
 4. **Check the conditions.** Is the required configuration the default, or one someone has
    to choose? Say which.
 5. **Check the result is not inflated.** Hold it to what the trace establishes.
@@ -49,7 +56,8 @@ source supports it.
 Write markdown to the result path you were given, one block per candidate:
 
 ```markdown
-### C1: <title, corrected if needed>
+### <ledger-id>: <title, corrected if needed>
+- Original ID: <hunter-local or advisory ID>
 - Decision: confirmed | needs_validation | rejected
 - Severity: <confirmed only>
 - Reason: <what you checked and what settled it>
@@ -70,4 +78,7 @@ Write markdown to the result path you were given, one block per candidate:
 ```
 
 Cite paths relative to the target root. Your record replaces the hunter's wording, so write
-it to stand on its own.
+it to stand on its own. Preserve every candidate ID and give each exactly one decision.
+Include every fully traced path under "Also affected"; do not drop a path when grouping
+findings. If a decisive line contains a secret, redact it as `[REDACTED: <kind>]` or omit
+the quote while retaining its citation and explaining why.

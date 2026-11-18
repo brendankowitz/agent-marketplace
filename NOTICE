@@ -26,5 +26,6 @@ plugins/experimental/skills/security-audit-next is an original work whose method
 verdicts, and an explicit coverage statement) was inspired by the "security-audit"
 skill from cloudflare/security-audit-skill
 (https://github.com/cloudflare/security-audit-skill), Copyright Cloudflare, Inc.,
-licensed under the MIT License. No text or code from that project is included.
+licensed under the MIT License. No substantial text or code from that project is included.
+The severity anchors in this skill are independently worded.
 This skill is not affiliated with, endorsed by, or sponsored by Cloudflare.

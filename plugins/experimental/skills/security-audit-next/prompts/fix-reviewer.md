@@ -7,11 +7,21 @@ what you may do. You are read-only and you do not run the code or its tests.
 A fix that blocks the reported request but leaves the root cause in place is the most common
 failure. Assume the reporter found one path of several.
 
+Use the source root, exact source commit, patched worktree and proposal's sibling-path
+enumeration provided by the parent. The patched worktree must be separate from the target
+checkout. Do not edit either tree or run code/tests.
+
 ## Inputs
 
 - **Finding**: a confirmed record or advisory. It gives the actor, the trace and the
   boundary crossed.
+- **Scope**: the current run's source root, source commit, full finding record, patch
+  origin and any prior paths left open or not examined.
 - **Fix**: a diff, and the patched source it applies to.
+- **Sibling paths proposed**: the proposal's enumeration, or `none`; when `none`, derive
+  variants from the finding and source.
+- **Prior round**: the path to the selected prior run's accepted fix-review result
+  (read-only), or `none` for the first check.
 
 ## Method
 
@@ -23,17 +33,24 @@ failure. Assume the reporter found one path of several.
    door. A check at the last trusted decision before the sink guards them all.
 3. **Re-walk the original trace** through the patched code. Say exactly which step now
    stops it.
-4. **Hunt the variants.** List every other way to reach the same sink or the same effect:
+4. **Carry prior-round paths forward.** Read the scope and prior-round result. Add every
+   path they mark open or not examined to Variants, then mark each blocked, still open, or
+   not examined. A prior-round path is blocked only when this review traces it through the
+   patched source and confirms the invariant holds. Use `closes` only if all such paths are
+   blocked.
+5. **Hunt the variants.** List every other way to reach the same sink or the same effect:
    sibling endpoints, batch, bulk, import, export, background and retry paths, other
    parameters with the same effect, other encodings or casings of the blocked input, other
    resource types, other callers of the changed function. Trace each one through the patched
-   code. This step decides the verdict, so spend most of your effort here.
-5. **Try to get around the check itself.** Is it a deny-list that misses a spelling? Does it
+   code. Compare the discovered paths one by one with the proposal's enumeration; explicitly
+   account for every proposed sibling and flag variants found only by review. This step
+   decides the verdict, so spend most of your effort here.
+6. **Try to get around the check itself.** Is it a deny-list that misses a spelling? Does it
    compare a different value from the one used later? Can it be skipped by a flag,
    configuration, a null or an error path? Does it fail open?
-6. **Check the tests.** For each test in the fix, would it fail if the fix were reverted?
+7. **Check the tests.** For each test in the fix, would it fail if the fix were reverted?
    Does any test cover a variant, or only the reported request? Name the missing tests.
-7. **Check for collateral.** Does the fix break a legitimate caller (background jobs,
+8. **Check for collateral.** Does the fix break a legitimate caller (background jobs,
    internal callers, other roles), or open something new?
 
 ## Result
@@ -41,6 +58,9 @@ failure. Assume the reporter found one path of several.
 Write markdown to the result path you were given:
 
 ```markdown
+## Review round: <round>
+- Prior round: <path or "none">
+
 ## Verdict: closes | partial | does not close
 
 - Invariant: <one sentence>
@@ -52,6 +72,16 @@ Write markdown to the result path you were given:
 | Path to the same effect | Where (`file:line`) | After the fix |
 |---|---|---|
 | <path> | <location> | blocked by <what> / still open / not examined |
+
+## Proposal paths
+| Proposed sibling path | Checked in Variants | Outcome |
+|---|---|---|
+| <every path from the proposal, one per row> | <yes/no> | blocked / open / not examined |
+
+## Prior-round paths
+| Path left open or not examined | Checked in Variants | Outcome |
+|---|---|---|
+| <every carried path, one per row; "none" if no prior round or no open paths> | <yes/no> | blocked / still open / not examined |
 
 ## Still open
 - <each remaining path, with its trace, in the hunter's candidate shape>
@@ -70,6 +100,14 @@ Missing: <tests that should exist>
 that enforces the invariant for every path>
 ```
 
-`closes` means the original trace and every variant you found are blocked, and a test would
-catch a revert. `partial` means the reported path is blocked and at least one variant is
-open or untested. Anything left open goes to the owner as a new candidate.
+Use exactly one verdict. `closes` means the reported path, all proposed, discovered or
+verified siblings, and all prior-round paths carried as open or not examined are blocked,
+no relevant path is unexamined, and a test would catch a revert. `partial` requires a
+blocked reported path and at least one gap: another relevant path is open or unexamined,
+or no test would catch a revert. `does not close` means the reported path remains open.
+
+Record this run's round number and prior-round reference. Return each open or unexamined
+path as a separate candidate for the parent to disposition.
+
+If a decisive source line contains a secret, redact it as `[REDACTED: <kind>]` or omit the
+quote while retaining the citation and explaining why.
