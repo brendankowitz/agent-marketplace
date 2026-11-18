@@ -102,12 +102,18 @@ what repeated runs found, so a clean report means "nothing found in what was exa
 
 ### 0. Establish a protected, unique run
 
+Before creating any worktree, run `git rev-parse --show-toplevel` in the invoking
+repository and resolve `<artifact-root>` once as the absolute path of `agent-working/`
+under that top level. Throughout this skill, its prompts and references, `./agent-working/`
+means `<artifact-root>`. Pass absolute artifact paths to agents separately from the audited
+source root. Never write artifacts inside a detached source or patched worktree.
+
 Before writing any run artifact in any mode (`hunt`, `validate`, `fix` or `learn`), create
 `./agent-working/` if needed, then write or update `./agent-working/.gitignore` so it
-contains `*`. These are the only writes allowed before the guard is verified. Check a
-prospective run artifact with `git check-ignore`. If the guard cannot be written or
-verified, stop before writing any other artifact; do not continue with an unprotected
-output path.
+contains `*`. These are the only writes allowed before the guard is verified. In the
+invoking repository, check a prospective run artifact with `git check-ignore`. If the guard
+cannot be written or verified, stop before writing any other artifact; do not continue
+with an unprotected output path.
 
 Define `<slug>` by lowercasing the target identifier, replacing each run of characters
 outside `[a-z0-9]` with `-`, and trimming leading or trailing `-`; use `repo` if empty. A
@@ -175,10 +181,11 @@ drop an existing rule because supporting evidence is unavailable: retain it and 
 support as unverified until resolved.
 
 Keep a detached source worktree until all agents and report generation using it are
-complete. Then remove only that exact clean worktree with `git worktree remove <path>`
-without force. Patched-worktree cleanup follows the separate rule in `fix` mode. If source
-worktree removal fails or unexpected changes are present, stop and report the path for
-manual resolution; do not delete broad directories or prune unrelated worktrees.
+complete. Run `git -C <path> status --short --ignored --untracked-files=all`. If it fails
+or shows anything, stop and report the path. Only an empty result permits removal with
+`git worktree remove <path>` without force. Patched-worktree cleanup follows the separate
+rule in `fix` mode. If source worktree removal fails, stop and report the path for manual
+resolution; do not delete broad directories or prune unrelated worktrees.
 
 ### 2. Map (`standard`, `deep`)
 
@@ -289,6 +296,7 @@ skip this step.
 
 Anything a verifier lists under "Related, not verified" is a new candidate. Verify it with
 another fresh verifier if the level allows, or list it under "Not examined".
+Give each path its own ledger ID first. A verifier never confirms a path it found itself.
 
 Keep the parent-owned ledger current for all IDs, including candidates from related paths.
 At report time every ID must have exactly one disposition: `confirmed`, `needs_validation`,
@@ -315,7 +323,9 @@ the user the report path, the count for each disposition (`confirmed`, `needs_va
 - Boundary: <who> can <do what> to <whose what>
 - Trace: `file:line` → `file:line` → `file:line`
   > <quoted decisive line>
-- Also affected: <fully verified sibling paths, or "none">
+- Also affected: <siblings named in the assigned candidate and fully traced by its verifier,
+  or siblings confirmed under their own ledger ID by a verifier other than the finder
+  (cite each such ID and its severity); "none" if neither applies>
 - Conditions: <what must be true>
 - Fix: <the invariant to enforce, where, and a regression test>
 
@@ -337,8 +347,8 @@ the user the report path, the count for each disposition (`confirmed`, `needs_va
 ```
 
 The last two sections separate "looked and found nothing" from "did not look". Include all
-fully verified "Also affected" paths; preserve unverified sibling or related paths with
-their citations under "Not examined" instead of dropping them. State at the top that
+paths that meet the "Also affected" criteria above. Keep unverified sibling or related
+paths and their citations under "Not examined" instead of dropping them. State at the top that
 coverage is partial if the run is `quick` or path-scoped, or if Step 2 produced no accepted
 map. Before writing the report, reconcile every ledger ID to exactly one disposition and
 every in-scope surface/class to examined or not examined. Put all unreconciled scope under
@@ -350,14 +360,17 @@ empty. For quick-mode severity and confidence, follow the qualification in Step 
 
 When someone else reports a vulnerability, the report is the candidate. Skip steps 2 to 4.
 
-1. Resolve the scope as in step 1, with slug `validate-<id>`. If the advisory names a commit
-   other than the one checked out, the parent creates a detached worktree of that commit
-   outside the target (`git worktree add --detach <path> <commit>`) and audits that, or
-   stops and says plainly that validation cannot apply to the advisory commit. Do not
-   switch the user's checkout. Record the audited source root and exact commit in `scope.md`
-   and pass both, together with the validation scope and advisory, to the verifier. If the user has
-   said which deployment shapes matter (authentication mode, data store, tenancy), record
-   them in `scope.md`; otherwise every configuration the repository supports is in scope.
+1. Resolve the scope as in step 1, with slug `validate-<id>`. All advisories in one run
+   must resolve to the same commit. If they name different commits, or only some name a
+   commit, stop and ask the user to split them into one run per commit. If the advisory
+   names a commit other than the one checked out, the parent creates a detached worktree
+   of that commit outside the target (`git worktree add --detach <path> <commit>`) and
+   audits that, or stops and says plainly that validation cannot apply to the advisory
+   commit. Do not switch the user's checkout. Record the audited source root and exact
+   commit in `scope.md` and pass both, together with the validation scope and advisory, to
+   the verifier. If the user has said which deployment shapes matter (authentication mode,
+   data store, tenancy), record them in `scope.md`; otherwise every configuration the
+   repository supports is in scope.
 2. Copy each advisory into the current run directory. Give it the next ledger ID in the
    `<run-id>-C001` sequence in `candidate-ledger.md`, keeping the advisory's own ID as a
    reference. Pass the ledger ID and advisory path to one fresh verifier per advisory with
@@ -374,10 +387,15 @@ candidate ID from a hunt or `validate` run, stop and ask. For a new advisory, th
 can run `validate` first to assign a candidate ID and record the audited commit. Strip
 `-C<nnn>` from the candidate ID to get `<run-id>`, then locate the originating run at
 `./agent-working/security-audit-*/<run-id>/`. Stop and ask if no run directory matches,
-the audited tree was dirty, or the run's `scope.md` records no audited `HEAD`. Use that
-recorded `HEAD` as the source commit. A supplied PR, branch or diff identifies the patch,
-not the source commit. In the new `scope.md`, record the clean source root, source commit,
-full finding record, originating run directory and, for a check, the patch's origin.
+the audited tree was dirty, or the run's `scope.md` records no audited `HEAD`. Read the
+candidate's final disposition in that run's `candidate-ledger.md`. Continue only if it is
+`confirmed`. If it is `rejected`, stop and say so. For `needs_validation`, stop and point
+the user to the missing fact and safe check in the local record. Suggest a new `validate`
+run only if the user can now record the deployment shape that decides the finding. For
+`Not examined`, stop and suggest running `validate` first. Use the recorded `HEAD` as the
+source commit. A supplied PR, branch or diff identifies the patch, not the source commit.
+In the new `scope.md`, record the clean source root, source commit, full finding record,
+originating run directory and, for a check, the patch's origin.
 
 **Propose** (finding only). The verified record already carries a fix line. Expand it into
 `fix-<candidate-id>.md`; the candidate ID includes its originating run ID, so the proposal
@@ -421,22 +439,31 @@ carried as open or not examined are blocked, no relevant path is unexamined, and
 would catch a revert. `partial` requires a blocked reported path and at least one gap:
 another relevant path is open or unexamined, or no test would catch a revert.
 `does not close` means the reported path remains open.
+Use `inconclusive` when the reported path was traced up to one fact outside the source,
+such as a dependency's behaviour, that decides whether it is blocked. Name the fact and
+how the owner can check it safely with dummy data and no live or shared system. Do not
+use this verdict if reading more of the source would settle the question.
+If the reviewer left the reported path not examined, treat the review as a failed
+fix-review assignment (`Not examined`) whatever its verdict.
 
 Check the reviewer's "Proposal paths" against the proposal and "Prior-round paths" against
 the prior result. Compare both lists with "Variants" and account for each path. Keep each
 round's `fix-review-<round>.md` in its own run directory. In the current run's `report.md`,
-write the verdict and mark each path, including any carried over from the prior round, as
-closed, still open or not examined. Tell the user the verdict and report path. Enter each
-open or unexamined path in this run's `candidate-ledger.md` with its own ID and disposition.
+write the verdict and each path's outcome, including paths carried over from the prior
+round. Mark paths blocked, still open or not examined. Keep the reported path's original
+ID; if its outcome is `inconclusive`, record that instead, with the missing fact and safe
+check. Tell the user the verdict and report path. In this run's `candidate-ledger.md`,
+give each other open or unexamined path its own ID with disposition `Not examined` until
+a fresh verifier decides it.
 
 After review, compare `git -C <patched-worktree> diff` with `fix.patch`; it must contain
-only the supplied hunks. If the patch adds files, verify every untracked path and its
-content against those additions. Confirm `git -C <patched-worktree> status --short` shows
-no staged changes or untracked files beyond those declared by the patch. Only then may the
-parent run `git worktree remove --force <exact patched-worktree path>`. Force removal is
-allowed only for this parent-created patched worktree. Remove clean source worktrees
-without `--force`; if any unexpected change or file exists, stop and report the path
-instead of removing it.
+only the supplied hunks. Check the patched worktree with
+`git -C <patched-worktree> status --short --ignored --untracked-files=all`. It must
+succeed and show no staged changes. Every untracked or ignored file must match a patch
+addition in both path and content. Only then may the parent run
+`git worktree remove --force <exact patched-worktree path>`. Force removal is allowed only
+for this parent-created patched worktree. Remove clean source worktrees without `--force`;
+if any unexpected change or file exists, stop and report the path instead of removing it.
 
 ## Turning findings into review rules
 

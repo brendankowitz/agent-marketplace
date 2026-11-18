@@ -31,11 +31,12 @@ checkout. Do not edit either tree or run code/tests.
 2. **Find where the fix enforces it.** Quote the line. Is that point one every path to the
    sink passes through, or only the reported path? A check at the entry point guards one
    door. A check at the last trusted decision before the sink guards them all.
-3. **Re-walk the original trace** through the patched code. Say exactly which step now
-   stops it.
+3. **Re-walk the original trace** through the patched code. Say where it stops, whether it
+   still reaches the sink, or which step source alone cannot settle.
 4. **Carry prior-round paths forward.** Read the scope and prior-round result. Add every
-   path they mark open or not examined to Variants, then mark each blocked, still open, or
-   not examined. A prior-round path is blocked only when this review traces it through the
+   path they mark open or not examined to Variants. In any table that repeats the reported
+   path, use its Original trace outcome; mark other paths blocked, still open or not
+   examined. A prior-round path is blocked only when this review traces it through the
    patched source and confirms the invariant holds. Use `closes` only if all such paths are
    blocked.
 5. **Hunt the variants.** List every other way to reach the same sink or the same effect:
@@ -61,12 +62,15 @@ Write markdown to the result path you were given:
 ## Review round: <round>
 - Prior round: <path or "none">
 
-## Verdict: closes | partial | does not close
+## Verdict: closes | partial | does not close | inconclusive
 
 - Invariant: <one sentence>
-- Enforced at: `file:line`
+- Enforced at: `file:line` (for `inconclusive`, cite the step the source cannot settle)
   > <quoted line>
-- Original trace: stopped at <step>, because <why> | still reaches the sink
+- Original trace: stopped at <step>, because <why> | still reaches the sink |
+  inconclusive at <step awaiting the missing fact> | not examined (if you could not trace
+  it, say so; the parent treats the review as not done)
+- Missing fact and safe check: <inconclusive only>
 
 ## Variants
 | Path to the same effect | Where (`file:line`) | After the fix |
@@ -76,7 +80,7 @@ Write markdown to the result path you were given:
 ## Proposal paths
 | Proposed sibling path | Checked in Variants | Outcome |
 |---|---|---|
-| <every path from the proposal, one per row> | <yes/no> | blocked / open / not examined |
+| <every path from the proposal, one per row> | <yes/no> | blocked / still open / not examined |
 
 ## Prior-round paths
 | Path left open or not examined | Checked in Variants | Outcome |
@@ -105,9 +109,13 @@ verified siblings, and all prior-round paths carried as open or not examined are
 no relevant path is unexamined, and a test would catch a revert. `partial` requires a
 blocked reported path and at least one gap: another relevant path is open or unexamined,
 or no test would catch a revert. `does not close` means the reported path remains open.
+Use `inconclusive` when the reported path was traced up to one fact outside the source,
+such as a dependency's behaviour, that decides whether it is blocked. Name the fact and
+how the owner can check it safely with dummy data and no live or shared system. Do not
+use this verdict if reading more of the source would settle the question.
 
-Record this run's round number and prior-round reference. Return each open or unexamined
-path as a separate candidate for the parent to disposition.
+Record this run's round number and prior-round reference. Keep the reported path's
+original ID. Return each other open or unexamined path as a separate candidate.
 
 If a decisive source line contains a secret, redact it as `[REDACTED: <kind>]` or omit the
 quote while retaining the citation and explaining why.

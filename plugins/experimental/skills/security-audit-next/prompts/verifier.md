@@ -71,12 +71,13 @@ Write markdown to the result path you were given, one block per candidate:
 - Trace: <the verified `file:line` chain, with the decisive line quoted>
 - Conditions: <what must be true, and whether it is the default>
 - Differs from the report: <where the claim was wider, narrower or wrong>
-- Also affected: <other entry points with the same root cause that you traced in full>
+- Also affected: <entry points beyond the main trace that the assigned candidate named
+  and that you traced in full>
 - Missing fact and safe check: <needs_validation only>
 - Fix: <the invariant, where to enforce it, a regression test>
-- Related, not verified: <other paths you noticed with the same root cause but did not trace
-  in full, each with a `file:line`. They go back to the parent as new candidates and are not
-  part of this decision>
+- Related, not verified: <every other path with the same root cause, each with a `file:line`,
+  even if you traced it in full. Return these to the parent as new candidates; they are
+  not part of this decision>
 
 ## Hardening notes
 - <weakness noticed along the way with no boundary crossed> [`file:line`]
@@ -84,6 +85,7 @@ Write markdown to the result path you were given, one block per candidate:
 
 Cite paths relative to the target root. Your record replaces the hunter's wording, so write
 it to stand on its own. Preserve every candidate ID and give each exactly one decision.
-Include every fully traced path under "Also affected"; do not drop a path when grouping
-findings. If a decisive line contains a secret, redact it as `[REDACTED: <kind>]` or omit
-the quote while retaining its citation and explaining why.
+Only paths named in the assigned candidate belong under "Also affected". Put every path
+you discovered under "Related, not verified", even if you traced it in full. Do not drop a
+path when grouping findings. If a decisive line contains a secret, redact it as
+`[REDACTED: <kind>]` or omit the quote while retaining its citation and explaining why.
