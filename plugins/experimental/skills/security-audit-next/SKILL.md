@@ -149,6 +149,14 @@ worktree, consolidated outputs and the shared learned-rules file. Agents may rea
 source and write only the result file assigned to them in the current run directory. These
 are the only exceptions to the source-only and output-path rules above.
 
+Before creating any source, advisory or patched worktree, list the effective filter
+drivers with `git config --get-regexp '^filter\.'` in the repository. Exit 1 with no output
+means no drivers are defined; any other failure means the config is unreadable. If it is
+unreadable or any `smudge` or `process` driver is defined, stop and ask before creating the
+worktree; do not override drivers. For every `git worktree add` and `git apply` below,
+including the examples, use `git -c core.hooksPath="<dir>"` in place of `git` to disable
+hooks. Use the absolute path of a fresh, empty directory inside the current run directory.
+
 Apart from the GitHub PR metadata and diff retrieval above, the only Git fetch allowed is
 for objects needed to resolve the requested PR, branch or advisory commit: for example
 `git fetch <remote> pull/<N>/head`, `git fetch <remote> <branch>`, or
