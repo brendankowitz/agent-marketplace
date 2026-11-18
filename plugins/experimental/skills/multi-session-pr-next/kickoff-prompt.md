@@ -24,6 +24,8 @@ Fix GitHub issue [#N] in [owner/repo] using local child sessions.
 Calculate the active team from runnable work and pending reviews.
 Recruit and dismiss as needed, with at most [4] concurrent children.
 Dismiss through a safe handoff; preserve sessions and final-review obligations.
+Choose and set up the dev stack and workflow yourself (plugins and skills such
+as superpowers, pstack, agent-marketplace), as the work needs.
 
 New PR: this session's branch is the PR head. Open it as a draft after the first integration.
 Existing PR [#M]: this session is on its branch.
@@ -63,6 +65,7 @@ Anything else is unowned: send the parent CHANGE before touching it.
 
 Decided: [interfaces, out-of-scope items, the human's decisions]
 Your tests: [test projects or filters to run before each READY]
+Stack: [stage: skill, for the skills this child needs beyond implement-task-next, or "base workflow"]
 Local resources: [the distinct port / database / temp names this child uses, or "none"]
 
 Start with [WORK task# or REVIEW author base...sha rerun=tests].
