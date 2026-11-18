@@ -294,9 +294,12 @@ advisory-commit worktree, not the caller's checkout. The map is optional and is 
 required in `validate` mode. Apply the Step 0 result-validation rule. Zero candidates means
 skip this step.
 
-Anything a verifier lists under "Related, not verified" is a new candidate. Verify it with
+For each path under "Related, not verified", the parent checks the ledger first. If a
+pending or decided entry has the same entry point and sink, link the path to that ID
+without queuing it again. Never merge candidates already assigned separate IDs.
+Only if no entry matches does the parent give the path a new ledger ID. Verify it with
 another fresh verifier if the level allows, or list it under "Not examined".
-Give each path its own ledger ID first. A verifier never confirms a path it found itself.
+A verifier never confirms a path it found itself.
 
 Keep the parent-owned ledger current for all IDs, including candidates from related paths.
 At report time every ID must have exactly one disposition: `confirmed`, `needs_validation`,

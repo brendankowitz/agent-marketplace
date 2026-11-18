@@ -75,9 +75,9 @@ Write markdown to the result path you were given, one block per candidate:
   and that you traced in full>
 - Missing fact and safe check: <needs_validation only>
 - Fix: <the invariant, where to enforce it, a regression test>
-- Related, not verified: <every other path with the same root cause, each with a `file:line`,
-  even if you traced it in full. Return these to the parent as new candidates; they are
-  not part of this decision>
+- Related, not verified: <every other path with the same root cause, citing `file:line`
+  for both its entry point and its sink, even if you traced it in full. Return these to
+  the parent to check against the ledger; they are not part of this decision>
 
 ## Hardening notes
 - <weakness noticed along the way with no boundary crossed> [`file:line`]
