@@ -108,6 +108,12 @@ under that top level. Throughout this skill, its prompts and references, `./agen
 means `<artifact-root>`. Pass absolute artifact paths to agents separately from the audited
 source root. Never write artifacts inside a detached source or patched worktree.
 
+Before any write, inspect the `agent-working` entry and its `.gitignore` without following
+links: neither may be a symlink, junction or other reparse point, and the root must be a
+real directory directly under the repository top level (create it there if absent).
+For every later directory creation or artifact write, check the whole path for links out
+of `<artifact-root>`. If any check fails, stop and ask; never follow or replace the link.
+
 Before writing any run artifact in any mode (`hunt`, `validate`, `fix` or `learn`), create
 `./agent-working/` if needed, then write or update `./agent-working/.gitignore` so it
 contains `*`. These are the only writes allowed before the guard is verified. In the
