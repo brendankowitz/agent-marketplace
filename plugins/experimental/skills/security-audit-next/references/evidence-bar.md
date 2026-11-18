@@ -36,16 +36,17 @@ An action the actor is already allowed to take is not privilege escalation.
 
 - **`confirmed`**: the full trace is in the repository, every control on the path has been
   read, nothing visible prevents it, and no fact outside the repository decides it. A
-  finding that holds only under a setting or deployment shape the repository supports is
-  still `confirmed`: list that under Conditions, say whether it is the default, and let
-  severity reflect it.
+  finding that holds only under a setting or deployment shape the repository supports and
+  the recorded scope does not exclude is still `confirmed`: list that under Conditions,
+  say whether it is the default, and let severity reflect it.
 - **`needs_validation`**: the trace is complete up to one named fact that source cannot
   settle: runtime behaviour, a deployment or proxy setting, a provider policy, a dependency's
   internals. Behaviour you can settle by reading all of the code that produces it, such as
   a query generator, is not such a fact. State the fact and a safe way for the owner to check it, using dummy data and
   no live or shared system. It carries no severity. It is not a place for vague ideas.
 - **`rejected`**: source refutes it. A control stops it, a precondition cannot hold, or
-  there is no meaningful result.
+  there is no meaningful result. A mechanism that crosses a boundary only in a deployment
+  shape the recorded scope excludes is `rejected` for that scope; name the shape.
 
 ## Severity (confirmed only)
 

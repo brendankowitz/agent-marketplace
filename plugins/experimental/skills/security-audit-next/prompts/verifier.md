@@ -25,6 +25,9 @@ A proof of concept can show a real mechanism without showing a boundary crossed,
 when it ran against a server with authentication off, where the caller could already do
 everything. Then look for a configuration the repository supports in which the same
 mechanism does cross a boundary. Confirm on that and say so, or reject if there is none.
+If the scope records which deployment shapes matter, search only those. If the mechanism
+crosses a boundary only in a shape the scope excludes, reject it for the recorded scope
+and name that shape in the reason.
 
 ## For each candidate
 
@@ -37,14 +40,16 @@ mechanism does cross a boundary. Confirm on that and say so, or reject if there 
    caller that only passes safe values. Read the map's Controls section when a map exists,
    then check the code. Without a map, search for the controls yourself.
 4. **Check the conditions.** Is the required configuration the default, or one someone has
-   to choose? Say which.
+   to choose? Say which. If the scope records deployment shapes, confirm the configuration
+   is one of them. If it is not, reject it as above.
 5. **Check the result is not inflated.** Hold it to what the trace establishes.
 6. **Decide.**
    - `confirmed`: the trace holds, no visible control stops it, and nothing outside the
      repository decides it. Assign severity from the anchors.
    - `needs_validation`: one named fact outside source decides it. Make the owner's check
      exact and safe. If source alone refutes the claim, it is `rejected`, not this.
-   - `rejected`: give the control, the impossible precondition, or the missing result.
+   - `rejected`: give the control, the impossible precondition, the missing result, or the
+     excluded deployment shape.
 7. **Check the fix.** It should enforce the invariant at the last trusted decision point and
    be the smallest change that does. Correct it if not, and write one if none was proposed.
 
