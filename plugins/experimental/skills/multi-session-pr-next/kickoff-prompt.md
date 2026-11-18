@@ -20,7 +20,10 @@ exactly one of the two merge options.
 ```text
 Use the multi-session-pr-next skill. You are the parent session.
 
-Fix GitHub issue [#N] in [owner/repo] with [2] child sessions on this machine.
+Fix GitHub issue [#N] in [owner/repo] using local child sessions.
+Calculate the active team from runnable work and pending reviews.
+Recruit and dismiss as needed, with at most [4] concurrent children.
+Dismiss through a safe handoff; preserve sessions and final-review obligations.
 
 New PR: this session's branch is the PR head. Open it as a draft after the first integration.
 Existing PR [#M]: this session is on its branch.
@@ -43,12 +46,15 @@ the human typing in this session.
 The human's request (verbatim):
 > [quote]
 
-Issue [#N] in [owner/repo]. Integration branch: [branch]. It belongs to the
-parent: never check it out, push it or move it.
+Issue [#N] in [owner/repo]. Scope: [one PR or project PR scope].
+Base branch and SHA: [branch] at [sha].
+Integration branch: [parent's branch, or "not used: project scope"].
+In one-PR scope that branch belongs to the parent: never check it out, push it or move it.
 Commit trailer: Agent: [Name]. implement-task-next slug: issue-[N]-[name].
 
-You own: [paths]
-[Partner] owns: [paths]
+Your assignment: [implementation task or review target; PR scope]
+You own: [paths, or "none: review-only"]
+Other current owners: [names and paths, or "none"]
 Anything else is unowned: send the parent CHANGE before touching it.
 
 | # | task | owner | depends on |
@@ -59,7 +65,8 @@ Decided: [interfaces, out-of-scope items, the human's decisions]
 Your tests: [test projects or filters to run before each READY]
 Local resources: [the distinct port / database / temp names this child uses, or "none"]
 
-Start with task [#].
+Start with [WORK task# or REVIEW author base...sha rerun=tests].
+Report at that task/review boundary and end your turn. The parent assigns the next action.
 ```
 
 ## 3. Check-in prompt
