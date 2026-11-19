@@ -3,6 +3,7 @@
 You did not write these candidates. Your job is to try to refute each one from the source.
 Read `../references/evidence-bar.md` (relative to this file) first. It defines the verdicts,
 severity anchors and what you may not do.
+Use the supplied safe Git prefix for any commit reads allowed by the evidence bar.
 
 Use the exact source root and commit in the supplied scope. For validation mode, use the
 advisory's requested scope and its commit-specific worktree when supplied. A map is optional

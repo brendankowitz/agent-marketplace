@@ -102,11 +102,12 @@ what repeated runs found, so a clean report means "nothing found in what was exa
 
 ### 0. Establish a protected, unique run
 
-Before creating any worktree, start at the invoking repository's top level. Confirm it
-with `git rev-parse --show-toplevel` and resolve `<artifact-root>` once as the absolute
-path of `agent-working/` there. In the skill, prompts and references, `./agent-working/`
-means `<artifact-root>`. Pass absolute artifact paths to agents separately from the audited
-source root. Never write artifacts inside a detached source or patched worktree.
+Before creating any worktree, run `git rev-parse --show-toplevel` in the invoking
+repository. If it reports a different directory, use that one. Resolve `<artifact-root>`
+once as the absolute path of `agent-working/` there. In the skill, prompts and references,
+`./agent-working/` means `<artifact-root>`. Pass absolute artifact paths to agents
+separately from the audited source root. Never write artifacts inside a detached source
+or patched worktree.
 
 Before any write, inspect the `agent-working` entry and its `.gitignore` without following
 links: neither may be a symlink, junction or other reparse point, and the root must be a
@@ -149,15 +150,23 @@ worktree, consolidated outputs and the shared learned-rules file. Agents may rea
 source and write only the result file assigned to them in the current run directory. These
 are the only exceptions to the source-only and output-path rules above.
 
-Use `git --no-pager -c core.hooksPath="<hooks>" -c core.fsmonitor=false` for every
-parent Git command, including examples. Reserve `<hooks>` as an unused absolute path in
-the planned run; create it empty once the guard passes. Add `--no-ext-diff --no-textconv`
-to `git diff`. Before `worktree add`, `apply`, `status` or working-tree diffs, list drivers
-with `git config --get-regexp '^filter\.'`. Exit 1 with no output means none; on any other
+Start every Git command, parent or agent, including examples, with `git --no-pager`
+followed by `-c core.hooksPath="<hooks>" -c core.fsmonitor=false -c log.showSignature=false`.
+Reserve `<hooks>` as an unused absolute path in the planned run; create it empty once the
+guard passes. Pass this exact prefix with the resolved hooks path in every dispatch,
+including retries. Use the command-specific flags in the evidence bar; agents are limited
+to its commit-only reads.
+
+Before `worktree add`, list the effective drivers. Do the same before `apply`, `status`,
+working-tree diffs or `worktree remove` for a worktree the parent created. Query with
+`git config --get-regexp '^filter\.'`. Exit 1 with no output means none; on any other
 failure stop and ask. For each driver pass `-c filter.<name>.smudge=` and
 `-c filter.<name>.process= -c filter.<name>.clean= -c filter.<name>.required=false` for
 that command only; never change stored config. Record in `scope.md` that filtered files
-were not materialised (LFS pointers stay pointers); list any needed under "Not examined".
+were not materialised in those worktrees (LFS pointers stay pointers); list any needed
+under "Not examined". In the invoking checkout, run `status` with the prefix only, so the
+user's own configured filter drivers run exactly as in their own `git status`. Never add,
+enable or change a driver there.
 
 Apart from the GitHub PR metadata and diff retrieval above, the only Git fetch allowed is
 for objects needed to resolve the requested PR, branch or advisory commit: for example
@@ -209,6 +218,7 @@ Dispatch one agent:
 
 ```
 Follow <skill-dir>/prompts/mapper.md.
+Safe Git prefix: <exact Step 0 prefix with the absolute hooks path>
 Scope: <current run directory>/scope.md
 Write the map to <current run directory>/map.md and reply with its path.
 ```
@@ -223,6 +233,7 @@ Dispatch each hunter as a plain one-shot subagent on the strongest model the hos
 
 ```
 Follow <skill-dir>/prompts/hunter.md.
+Safe Git prefix: <exact Step 0 prefix with the absolute hooks path>
 Scope: <current run directory>/scope.md
 Map (if present): the accepted map result (`map.md` or `map-retry-1.md`)
 Assignment: <"everything in scope", or one unit>
@@ -260,6 +271,7 @@ Dispatch one agent with the accepted map result and every accepted hunt result:
 
 ```
 Follow <skill-dir>/prompts/gap-critic.md.
+Safe Git prefix: <exact Step 0 prefix with the absolute hooks path>
 Scope: <current run directory>/scope.md
 Map: the accepted map result (`map.md` or `map-retry-1.md`)
 Hunt results: <paths to all accepted current-run hunt results>
@@ -286,6 +298,7 @@ verified. Then:
 
 ```
 Follow <skill-dir>/prompts/verifier.md.
+Safe Git prefix: <exact Step 0 prefix with the absolute hooks path>
 Scope: <current run directory>/scope.md
 Audited source: <source root> at <commit>
 Candidates: <full candidate blocks, each relabeled by the parent with its ledger ID;
@@ -433,9 +446,9 @@ ledger ID. Add the prior round number and every path left open or not examined t
 `scope.md`. Give the reviewer the prior run's accepted review result; never edit that run.
 
 **Check** (finding plus patch). For a PR or branch, use the Step 0 flags with
-`git diff <recorded source commit> <patch head>` to generate `fix.patch`; otherwise save
-the supplied patch as `fix.patch`. Create an isolated detached worktree at the exact
-source commit. The parent applies the patch with `git apply` only in that worktree,
+`git diff --binary <recorded source commit> <patch head>` to generate `fix.patch`;
+otherwise save the supplied patch as `fix.patch`. Create an isolated detached worktree at
+the exact source commit. The parent applies the patch with `git apply` only in that worktree,
 without modifying the target checkout. If the patch does not apply cleanly, stop and ask;
 do not review a partially patched tree. Dispatch one fresh agent that has not seen the
 prior hunt or proposal rationale; it does receive the verified finding and sibling paths
@@ -444,6 +457,7 @@ the reviewer to derive variants from the finding and source:
 
 ```
 Follow <skill-dir>/prompts/fix-reviewer.md.
+Safe Git prefix: <exact Step 0 prefix with the absolute hooks path>
 Finding: <path to the verified record or advisory>
 Scope: <current run directory>/scope.md
 Source: <source root> at <commit>
@@ -477,8 +491,8 @@ check. Tell the user the verdict and report path. In this run's `candidate-ledge
 give each other open or unexamined path its own ID with disposition `Not examined` until
 a fresh verifier decides it.
 
-After review, compare `git -C <patched-worktree> diff` with `fix.patch`; it must contain
-only the supplied hunks. Check the patched worktree with
+After review, compare `git -C <patched-worktree> diff --binary` with `fix.patch`; it must
+contain only the supplied hunks. Check the patched worktree with
 `git -C <patched-worktree> status --short --ignored --untracked-files=all`. It must
 succeed and show no staged changes. Every untracked or ignored file must match a patch
 addition in both path and content. Only then may the parent run

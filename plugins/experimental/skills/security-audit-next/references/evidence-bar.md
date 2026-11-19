@@ -76,17 +76,24 @@ independent refutation; citation checking alone does not establish a confirmed f
 ## Limits on the auditor
 
 - Read only. Do not build, run, install or fetch the target's code or dependencies. Do not
-  contact deployed endpoints, cloud accounts, registries or any live system. Reading files
-  and read-only `git` commands (`status`, `rev-parse`, `log`, `show`, `diff`, `blame`, `grep`)
-  are fine. Only the parent may retrieve GitHub PR metadata or diffs; fetch Git objects
+  contact deployed endpoints, cloud accounts, registries or any live system. Read files
+  directly for working-tree contents. For Git, use the exact safe Git prefix from Step 0
+  (supplied in each dispatch). Agents may only resolve a commit with `rev-parse` or read
+  committed history: `log <commit>`, `show <commit>`, `diff <commit> <commit>`,
+  `blame <commit> -- <path>` or `grep -e <pattern> <commit> -- <path>`. Use
+  `--no-ext-diff --no-textconv` with `log`, `show` and every `diff`; use `--no-textconv`
+  with `blame` and `grep`. Use `--format=medium` for `log` and `show` rather than a
+  configured signature format. Do not opt back into helpers or signature checks. Only the
+  parent may run `status` or a working-tree diff.
+- Only the parent may retrieve GitHub PR metadata or diffs; fetch Git objects
   needed for the requested PR, branch or advisory commit using the workflow's exact fetch
   allowance; create and remove the workflow's detached worktrees; or apply `fix.patch` to
   its parent-created patched worktree. Do not fetch any other refs, source archives or
   dependencies. If the required fetch fails, stop and ask.
 - Remove clean source worktrees without `--force`. The parent may force-remove only the
-  exact patched worktree it created, and only after `git -C <path> diff` contains only the
-  supplied patch's changes. If the patch adds files, verify every untracked path and its
-  content against those additions. Check
+  exact patched worktree it created, and only after `git -C <path> diff --binary` shows
+  only the supplied patch's changes. If the patch adds files, verify every untracked path
+  and its content against those additions. Check
   `git -C <path> status --short --ignored --untracked-files=all` before removal. The
   patched worktree must show no staged changes and no untracked or ignored files beyond
   the patch's additions. A clean source worktree must show nothing.

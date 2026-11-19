@@ -5,6 +5,7 @@ not hunt. Read `../references/evidence-bar.md` (relative to this file) first, fo
 
 Read the scope file you were given. Stay inside the target it names, but follow code outside
 it wherever in-scope code depends on it for a security decision.
+Use the supplied safe Git prefix for any commit reads allowed by the evidence bar.
 
 Read enough of the code to answer the questions below from source, not from the README.
 Routing tables, middleware registration, handler signatures, queue consumers, CLI entry

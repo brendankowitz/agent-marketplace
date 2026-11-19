@@ -3,6 +3,7 @@
 You are checking coverage in a source-only security audit. Read
 `../references/evidence-bar.md` first. Do not hunt for vulnerabilities or treat missing
 agent output as evidence that an area was clean.
+Use the supplied safe Git prefix for any commit reads allowed by the evidence bar.
 
 Read the supplied scope, valid map and every valid hunt result. Compare each mapped entry
 point, trust boundary, applicable attack-class section and deep-mode unit against the

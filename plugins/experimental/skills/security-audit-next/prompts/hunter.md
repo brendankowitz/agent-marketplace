@@ -9,6 +9,7 @@ what you find.
 
 ## Inputs
 
+- **Safe Git prefix**: use it for any commit reads allowed by the evidence bar.
 - **Scope**: the target and commit. If a `diff.patch` sits beside it, start from the changed
   lines and follow each one to its callers and to the controls it depends on.
 - **Map**, if given: principals, entry points, boundaries and controls. Treat it as a guide

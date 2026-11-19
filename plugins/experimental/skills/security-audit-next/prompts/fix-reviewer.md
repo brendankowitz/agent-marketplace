@@ -13,6 +13,7 @@ checkout. Do not edit either tree or run code/tests.
 
 ## Inputs
 
+- **Safe Git prefix**: use it for any commit reads allowed by the evidence bar.
 - **Finding**: a confirmed record or advisory. It gives the actor, the trace and the
   boundary crossed.
 - **Scope**: the current run's source root, source commit, full finding record, patch
