@@ -164,9 +164,14 @@ failure stop and ask. For each driver pass `-c filter.<name>.smudge=` and
 `-c filter.<name>.process= -c filter.<name>.clean= -c filter.<name>.required=false` for
 that command only; never change stored config. Record in `scope.md` that filtered files
 were not materialised in those worktrees (LFS pointers stay pointers); list any needed
-under "Not examined". In the invoking checkout, run `status` with the prefix only, so the
-user's own configured filter drivers run exactly as in their own `git status`. Never add,
-enable or change a driver there.
+under "Not examined". Use the same overrides for `status` in the invoking checkout, since
+a configured driver can run a script from the audited tree. No output means clean. If
+every entry is an unstaged modification (` M`) of a path whose `filter` attribute
+(`git check-attr filter -- <path>`) names an overridden driver, the overrides may be the
+only cause, so do not audit that checkout: continue in a detached worktree at the target
+commit (`HEAD` for a path or whole-repository audit), record that worktree in `scope.md`
+as the audited source with a clean status, and list the reported paths under "Not examined"
+as working-tree state not compared. Any other entry means the checkout is dirty.
 
 Apart from the GitHub PR metadata and diff retrieval above, the only Git fetch allowed is
 for objects needed to resolve the requested PR, branch or advisory commit: for example
@@ -186,8 +191,8 @@ source tree. Never apply a PR/branch diff to a different source tree. If they di
 not audit the current checkout: have the parent create a detached worktree at the resolved
 target commit outside the target repository and continue there, or stop and report the
 mismatch if that cannot be done. For a path or whole-repository audit, record the current
-`HEAD` and whether the working tree is dirty; claims must identify that the source includes
-the working-tree changes. For a commit-specific PR, branch or advisory scope, use a clean
+`HEAD` and whether the working tree is dirty; claims must identify whether the source
+includes working-tree changes. For a commit-specific PR, branch or advisory scope, use a clean
 tree at the resolved commit; if the checkout is dirty, use a detached worktree even when
 its `HEAD` matches, or stop rather than mix uncommitted changes into the audit.
 
