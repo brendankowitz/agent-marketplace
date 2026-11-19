@@ -21,7 +21,7 @@ licensed under the BSD 3-Clause License (see the LICENSE file in each plugin
 directory). The five phase plugins were unified from the
 copilot-cli-code-template and claude-code-template projects.
 
-plugins/experimental/skills/security-audit-next is an original work whose method
+plugins/experimental/skills/threat-audit-next is an original work whose method
 (candidate gate, independent refutation, confirmed / needs-validation / rejected
 verdicts, and an explicit coverage statement) was inspired by the "security-audit"
 skill from cloudflare/security-audit-skill

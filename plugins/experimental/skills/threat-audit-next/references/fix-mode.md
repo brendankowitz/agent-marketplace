@@ -7,7 +7,7 @@ Resolve the scope as in Step 1 with slug `fix-<candidate-id>`. If the finding ha
 candidate ID from a hunt or `validate` run, stop and ask. For a new advisory, the user
 can run `validate` first to assign a candidate ID and record the audited commit. Strip
 `-C<nnn>` from the candidate ID to get `<run-id>`, then locate the originating run at
-`./agent-working/security-audit-*/<run-id>/`. Stop and ask if no run directory matches,
+`./agent-working/threat-audit-*/<run-id>/`. Stop and ask if no run directory matches,
 the audited tree was dirty, or the run's `scope.md` records no audited `HEAD`. Read the
 candidate's final disposition in that run's `candidate-ledger.md`. Continue only if it is
 `confirmed`. If it is `rejected`, stop and say so. For `needs_validation`, stop and point
