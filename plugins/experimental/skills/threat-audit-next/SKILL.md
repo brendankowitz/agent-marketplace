@@ -1,5 +1,5 @@
 ---
-name: security-audit-next
+name: threat-audit-next
 description: >
   Use when asked to find vulnerabilities in source code, audit or pen-test a codebase, hunt
   for security bugs in a PR, branch or folder, triage or validate a submitted security
@@ -11,7 +11,7 @@ description: >
 > **Experimental.** New skill with no stable counterpart yet. It may change or disappear
 > without notice.
 
-# Security Audit
+# Threat Audit
 
 Find vulnerabilities that cross a real trust boundary, and report each with the source
 evidence, the concrete damage, and the smallest fix. This is defensive, source-only work.
@@ -47,7 +47,7 @@ All optional, in any order:
   finding, propose the fix. With a patch, check that it closes the finding. Select
   `prior-run` to continue a fix review from an earlier run.
 - **`learn [<findings>]`**: turn confirmed findings into review rules. Default: ask the user
-  to select complete prior-run reports under `./agent-working/security-audit-*/<run-id>/`,
+  to select complete prior-run reports under `./agent-working/threat-audit-*/<run-id>/`,
   then use their confirmed, independently verified records.
 
 If a token matches none of these, stop and ask. A misspelt level must not quietly become a
@@ -130,7 +130,7 @@ with an unprotected output path.
 
 Define `<slug>` by lowercasing the target identifier, replacing each run of characters
 outside `[a-z0-9]` with `-`, and trimming leading or trailing `-`; keep the last 40 characters if longer; use `repo` if empty. A
-run directory is `./agent-working/security-audit-<slug>/<run-id>/`, where `<run-id>` is a
+run directory is `./agent-working/threat-audit-<slug>/<run-id>/`, where `<run-id>` is a
 UTC timestamp plus a random suffix, as `YYYYMMDDTHHMMSSZ-<6 hex>`. Create a new directory for every run and refuse to
 reuse one. Never rename or reuse only `report.md`: maps, hunts, verifier decisions, gap
 records, proposals and review rounds must all remain isolated in their original run
@@ -329,7 +329,7 @@ the user the report path, the count for each disposition (`confirmed`, `needs_va
 `report.md`, not in chat.
 
 ```markdown
-# Security Audit: <target>
+# Threat Audit: <target>
 
 | Level | Commit | Agents | Verification | Wall-clock | Tokens / cost |
 |---|---|---|---|---|---|
