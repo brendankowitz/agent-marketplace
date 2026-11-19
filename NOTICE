@@ -20,3 +20,12 @@ plugins/document, and plugins/experimental are original works by Brendan Kowitz,
 licensed under the BSD 3-Clause License (see the LICENSE file in each plugin
 directory). The five phase plugins were unified from the
 copilot-cli-code-template and claude-code-template projects.
+
+plugins/experimental/skills/security-audit-next is an original work whose method
+(candidate gate, independent refutation, confirmed / needs-validation / rejected
+verdicts, and an explicit coverage statement) was inspired by the "security-audit"
+skill from cloudflare/security-audit-skill
+(https://github.com/cloudflare/security-audit-skill), Copyright Cloudflare, Inc.,
+licensed under the MIT License. No substantial text or code from that project is included.
+The severity anchors in this skill are independently worded.
+This skill is not affiliated with, endorsed by, or sponsored by Cloudflare.
