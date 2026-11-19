@@ -21,7 +21,9 @@ The protocol below makes that channel safe, keeps the agents from colliding,
 and ends with evidence rather than agreement.
 
 The kickoff prompt a human gives each agent is in
-[kickoff-prompt.md](kickoff-prompt.md).
+[kickoff-prompt.md](kickoff-prompt.md). If every agent is a child session of one
+GitHub Copilot app session on the same machine, use `multi-session-pr-next`
+instead.
 
 ## Scope: one PR or a project
 
