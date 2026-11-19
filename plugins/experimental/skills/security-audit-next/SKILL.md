@@ -129,15 +129,16 @@ cannot be written or verified, stop before writing any other artifact; do not co
 with an unprotected output path.
 
 Define `<slug>` by lowercasing the target identifier, replacing each run of characters
-outside `[a-z0-9]` with `-`, and trimming leading or trailing `-`; use `repo` if empty. A
+outside `[a-z0-9]` with `-`, and trimming leading or trailing `-`; keep the last 40 characters if longer; use `repo` if empty. A
 run directory is `./agent-working/security-audit-<slug>/<run-id>/`, where `<run-id>` is a
-UTC timestamp plus a random suffix. Create a new directory for every run and refuse to
+UTC timestamp plus a random suffix, as `YYYYMMDDTHHMMSSZ-<6 hex>`. Create a new directory for every run and refuse to
 reuse one. Never rename or reuse only `report.md`: maps, hunts, verifier decisions, gap
 records, proposals and review rounds must all remain isolated in their original run
 directory. A prior report may be consulted for priorities only when explicitly selected;
 its "nothing found" areas never count as current coverage.
 
-When creating the run directory, the parent creates `run-log.md` there. Before each
+When creating the run directory, the parent creates `run-log.md` there as a table
+with columns Role, Result path, Dispatched (UTC) and Outcome. Before each
 dispatch, including a retry, verify that the assigned result path does not exist and log a
 row with the role, assigned result path and dispatch time. Complete that row with the exact
 accepted result path or `failed`; use the accepted path in later dispatches.
@@ -238,8 +239,8 @@ Apply the Step 0 result-validation rule. An invalid or missing hunter result lea
 assignment `Not examined`. Give every candidate a globally unique ID in a
 parent-owned `candidate-ledger.md` (for example `<run-id>-C001`, `<run-id>-C002`),
 regardless of IDs used locally by hunters. Track each ID, title, source assignment,
-verification artifact and final disposition in that ledger. Record every candidate before
-verification. Do not merge candidate instances before each has been checked; if a report
+verification artifact and final disposition in that ledger. Record every candidate a hunt
+result lists before verification; leads a hunter dropped are not candidates. Do not merge candidate instances before each has been checked; if a report
 later groups verified duplicates, preserve every ID, trace and separately verified path.
 
 In `quick`, the parent checks the full evidence bar, including reachability, controls,

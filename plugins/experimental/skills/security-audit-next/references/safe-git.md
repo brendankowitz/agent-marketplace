@@ -20,7 +20,7 @@ failure stop and ask. For each driver pass `-c filter.<name>.smudge=` and
 `-c filter.<name>.process= -c filter.<name>.clean= -c filter.<name>.required=false` for
 that command only; never change stored config. Record in `scope.md` that filtered files
 were not materialised in those worktrees (LFS pointers stay pointers); list any needed
-under "Not examined". Use the same overrides for `status` in the invoking checkout, since
+under "Not examined". Every `status`, in any checkout, carries the same overrides, since
 a configured driver can run a script from the audited tree. No output means clean. If
 every entry is an unstaged modification (` M`) of a path whose `filter` attribute
 (`git check-attr filter -- <path>`) names an overridden driver, the overrides may be the
