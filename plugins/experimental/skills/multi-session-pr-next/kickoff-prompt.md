@@ -49,10 +49,15 @@ The human's request (verbatim):
 > [quote]
 
 Issue [#N] in [owner/repo]. Scope: [one PR or project PR scope].
-Base branch and SHA: [branch] at [sha].
+PR key: [stable ledger key, e.g. p1]. PR target branch: [branch].
+Starting base branch and SHA: [branch] at [sha].
+Whole-PR review base: [sha; FINAL supplies its current range and assigned tests].
 Integration branch: [parent's branch, or "not used: project scope"].
+Implementation sync SHA: [validated integration SHA or approved published PR base].
 In one-PR scope that branch belongs to the parent: never check it out, push it or move it.
-Commit trailer: Agent: [Name]. implement-task-next slug: issue-[N]-[name].
+Commit trailer: Agent: [Name].
+Handoff ledger: agent-working/issue-[N]-[name]/progress.md.
+implement-task-next slug per parent task: issue-[N]-[name]-task-[task#].
 
 Your assignment: [implementation task or review target; PR scope]
 You own: [paths, or "none: review-only"]
@@ -65,10 +70,10 @@ Anything else is unowned: send the parent CHANGE before touching it.
 
 Decided: [interfaces, out-of-scope items, the human's decisions]
 Your tests: [test projects or filters to run before each READY]
-Stack: [stage: skill, for the skills this child needs beyond implement-task-next, or "base workflow"]
+Stack: [stage: skill; required or optional; integration or FINAL gate, or "base workflow"]
 Local resources: [the distinct port / database / temp names this child uses, or "none"]
 
-Start with [WORK task# or REVIEW author base...sha rerun=tests].
+Start with [WORK task# pr=key sync=sha or REVIEW review-id pr=key author=name base...sha kind=partner rerun=tests].
 Report at that task/review boundary and end your turn. The parent assigns the next action.
 ```
 
