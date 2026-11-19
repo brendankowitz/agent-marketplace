@@ -357,6 +357,9 @@ assume the running parent sees it either, and check your own skill list.
 
 ## 3. Child work
 
+- Before creating files or scratch worktrees under `./agent-working`, ensure
+  `./agent-working/.gitignore` includes `*`. Initialize it in every child
+  worktree, including review-only sessions; preserve any existing rules.
 - **Keep a durable handoff ledger** at
   `./agent-working/issue-<N>-<name>/progress.md`. Record the parent task as
   `started` before writing code or tests. Run `implement-task-next` only for
