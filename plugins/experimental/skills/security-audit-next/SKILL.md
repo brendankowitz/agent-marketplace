@@ -50,7 +50,7 @@ All optional, in any order:
   to select complete prior-run reports under `./agent-working/security-audit-*/<run-id>/`,
   then use their confirmed, independently verified records.
 
-If a token matches neither, stop and ask. A misspelt level must not quietly become a
+If a token matches none of these, stop and ask. A misspelt level must not quietly become a
 shallower audit, and a misspelt target must not quietly audit something else.
 
 `<skill-dir>` means the installed directory containing this `SKILL.md`, `prompts/` and
@@ -110,7 +110,8 @@ separately from the audited source root. Never write artifacts inside a detached
 or patched worktree.
 
 Before any write, inspect the `agent-working` entry and its `.gitignore` without following
-links: neither may be a symlink, junction or other reparse point, and the root must be a
+links (PowerShell: `LinkType` and the `ReparsePoint` attribute from `Get-Item -Force`;
+POSIX: `test -L`): neither may be a symlink, junction or other reparse point, and the root must be a
 real directory directly under the repository top level (create it there if absent).
 For every later directory creation or artifact write, check the whole path for links out
 of `<artifact-root>`. If any check fails, stop and ask; never follow or replace the link.
@@ -152,10 +153,13 @@ are the only exceptions to the source-only and output-path rules above.
 
 Start every Git command, parent or agent, including examples, with `git --no-pager`
 followed by `-c core.hooksPath="<hooks>" -c core.fsmonitor=false -c log.showSignature=false`.
-Reserve `<hooks>` as an unused absolute path in the planned run; create it empty once the
-guard passes. Pass this exact prefix with the resolved hooks path in every dispatch,
-including retries. Use the command-specific flags in the evidence bar; agents are limited
-to its commit-only reads.
+Choose `<hooks>` before the first Git command, including the `rev-parse` above: an absolute
+path in the OS temp directory with a random name that does not exist. Never create it; a
+missing hooks directory runs no hooks. Pass this exact prefix with the resolved hooks path
+in every dispatch, including retries. Every `-c` option, including the filter overrides
+below, goes before the subcommand (`git --no-pager -c ... status --short`); after the
+subcommand Git reads it as something else. Use the command-specific flags in the evidence
+bar; agents are limited to its commit-only reads.
 
 Before `worktree add`, list the effective drivers. Do the same before `apply`, `status`,
 working-tree diffs or `worktree remove` for a worktree the parent created. Query with
@@ -190,8 +194,9 @@ fails, stop and ask. Compare the target commit with the commit checked out in th
 source tree. Never apply a PR/branch diff to a different source tree. If they differ, do
 not audit the current checkout: have the parent create a detached worktree at the resolved
 target commit outside the target repository and continue there, or stop and report the
-mismatch if that cannot be done. For a path or whole-repository audit, record the current
-`HEAD` and whether the working tree is dirty; claims must identify whether the source
+mismatch if that cannot be done. For a path or whole-repository audit, the target commit
+is the current `HEAD` and the checkout is audited in place, with no worktree unless
+Step 0's filter case applies. Record `HEAD` and whether the working tree is dirty; claims must identify whether the source
 includes working-tree changes. For a commit-specific PR, branch or advisory scope, use a clean
 tree at the resolved commit; if the checkout is dirty, use a detached worktree even when
 its `HEAD` matches, or stop rather than mix uncommitted changes into the audit.
@@ -234,7 +239,8 @@ results. In `deep` without a map, dispatch one hunter on everything in scope and
 
 ### 3. Hunt
 
-Dispatch each hunter as a plain one-shot subagent on the strongest model the host offers:
+Dispatch each hunter as a plain one-shot subagent. Use the session's model unless the user
+names another; a stronger model finds more, but the user chooses the spend:
 
 ```
 Follow <skill-dir>/prompts/hunter.md.
@@ -251,8 +257,10 @@ Write your result to <current run directory>/hunt-<n>.md and reply with its path
   six, merging the smallest units if there are more. Add one wildcard hunter whose
   assignment is "the Wildcard section only". Do not tell a hunter what the others found.
 
-If the host cannot dispatch subagents, follow the prompt files yourself in order and record
-`inline` in `run-log.md`. Say in the report that nothing was independently verified.
+If the host cannot dispatch subagents, or the user says not to, follow the prompt files
+yourself in order. Log one `run-log.md` row per role with `inline` in place of the dispatch
+time, and still write each role's result file. Say in the report that nothing was
+independently verified.
 
 Apply the Step 0 result-validation rule. An invalid or missing hunter result leaves its
 assignment `Not examined`. Give every candidate a globally unique ID in a
@@ -290,7 +298,7 @@ three hunters on the top gaps. Whatever remains goes under "Not examined".
 
 ### 5. Verify
 
-Verify every candidate ID independently before grouping any findings that share a root
+Check every candidate ID on its own before grouping any findings that share a root
 cause. Do not collapse distinct paths or instances whose evidence has not been separately
 verified. Then:
 
