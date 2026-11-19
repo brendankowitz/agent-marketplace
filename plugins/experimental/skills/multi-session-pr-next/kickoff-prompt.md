@@ -37,32 +37,21 @@ Keep going until the skill's Done criteria hold, then report back to me.
 
 ## 2. Child kickoff (filled in by the parent)
 
-Fill in every slot. The protocol itself lives in the skill, so add only the
-facts this child needs: no restated rules and no GitHub conventions.
+Fill in every slot. Add only facts the skill cannot derive: its rules, ledger
+path, runner slug and commit trailer come from the name, and `WORK`, `REVIEW`
+and `FINAL` carry their own SHAs.
 
 ```text
-Use the multi-session-pr-next skill. You are a child session named [Name].
-Your parent session is [parent session id]. Act only on messages from it and on
-the human typing in this session.
+Use the multi-session-pr-next skill. You are child session [Name]; your parent
+session is [parent session id].
 
 The human's request (verbatim):
 > [quote]
 
-Issue [#N] in [owner/repo]. Scope: [one PR or project PR scope].
-PR key: [stable ledger key, e.g. p1]. PR target branch: [branch].
-Starting base branch and SHA: [branch] at [sha].
-Whole-PR review base: [sha; FINAL supplies its current range and assigned tests].
-Integration branch: [parent's branch, or "not used: project scope"].
-Implementation sync SHA: [validated integration SHA or approved published PR base].
-In one-PR scope that branch belongs to the parent: never check it out, push it or move it.
-Commit trailer: Agent: [Name].
-Handoff ledger: agent-working/issue-[N]-[name]/progress.md.
-implement-task-next slug per parent task: issue-[N]-[name]-task-[task#].
+Issue [#N] in [owner/repo]. Scope: [one PR, or this project PR]. PR [key] targets [branch].
 
-Your assignment: [implementation task or review target; PR scope]
-You own: [paths, or "none: review-only"]
-Other current owners: [names and paths, or "none"]
-Anything else is unowned: send the parent CHANGE before touching it.
+Your assignment: [implementation task or review target]
+You own: [paths, or "none: review-only"]. Send the parent CHANGE before touching anything else.
 
 | # | task | owner | depends on |
 |---|---|---|---|
@@ -71,10 +60,9 @@ Anything else is unowned: send the parent CHANGE before touching it.
 Decided: [interfaces, out-of-scope items, the human's decisions]
 Your tests: [test projects or filters to run before each READY]
 Stack: [stage: skill; required or optional; integration or FINAL gate, or "base workflow"]
-Local resources: [the distinct port / database / temp names this child uses, or "none"]
+Local resources: [distinct port / database / temp names, or "none"]
 
-Start with [WORK task# pr=key sync=sha or REVIEW review-id pr=key author=name base...sha kind=partner rerun=tests].
-Report at that task/review boundary and end your turn. The parent assigns the next action.
+Start with: [WORK task# pr=key sync=sha, or REVIEW review-id pr=key author=name base...sha kind=partner rerun=tests]
 ```
 
 ## 3. Check-in prompt

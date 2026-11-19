@@ -610,7 +610,11 @@ and error retries only to active children, or to an outstanding release.
 ## 8. Waits and deadlock
 
 - **A deadlock is a cycle in the Waits table.** A long busy run is not one,
-  and neither is an item blocked on the human.
+  and neither is an item blocked on the human. A capacity wait counts: when a
+  child waits on a parked or unrecruited owner and no slot can be freed, the
+  waiter holds the owner's slot. Break it below, or park a waiter that can
+  complete §2a's handoff; otherwise ask the human for a named limit or
+  ownership change. Never raise the limit yourself.
 - **Break a cycle** by integrating early whatever is complete (§7 step 3),
   splitting a task into a part that needs nothing, reordering, or deciding the
   interface yourself and recording it.
