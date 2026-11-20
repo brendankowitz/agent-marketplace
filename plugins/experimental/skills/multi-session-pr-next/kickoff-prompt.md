@@ -14,32 +14,44 @@ Start the parent in a project session on the repository:
   branch becomes its own PR head.
 - For an existing PR, use that PR's session (`open_pr_session`).
 
-Fill in the bracketed values. Keep exactly one of the three scope lines. Say
-“ask me once at startup” for the stack, or leave authority unspecified, to be
-asked at startup. An unattended run with none uses the recommended stack
-(§2b) and `hold`.
+Fill in the delivery contract and bracketed values. Delivery mode and execution
+shape are separate; one parent PR is the default execution shape. `Project` and
+`ship` do not select a delivery mode. Ask once
+at startup if the mode is missing; an unattended run with no mode defaults to
+`feature-pr`, and one with no authority defaults to `hold`. Derive the target
+and completion check from the human's brief or verified PR/repository metadata;
+if either remains missing or ambiguous, ask before target-dependent work. For
+the stack, say “ask me once at startup” or leave it unspecified; an unattended
+run uses the recommended stack (§2b).
 
 Authority (§2c) is one preset, which you can edit.
 
 | Preset | The parent may |
 |---|---|
-| `hold` | Publish the draft PR. You mark it ready, request reviewers and merge; sessions stay parked. |
-| `deliver` | `hold` plus mark ready, request and remind the reviewers you name, and archive finished child sessions once everything has merged. You merge. |
-| `ship` | `deliver` plus merge, once each named reviewer approves the final head. |
+| `hold` | Publish the draft PR. The human marks it ready, requests reviewers and merges; sessions stay parked. |
+| `deliver` | `hold` plus mark ready, request and remind the reviewers you name, and archive eligible finished child sessions (§10). The human merges product-outcome deliverables or feature-pr components. |
+| `ship` | `deliver` plus merge eligible PRs allowed by the selected delivery mode, once their merge gates pass. |
+
+`product-outcome` requires `ship` for the parent to merge its PRs. In
+`feature-pr`, `ship` can merge internal component PRs to the feature branch but
+never the final feature PR. That PR is handed to the human for review.
 
 ```text
 Use the multi-session-pr-next skill. You are the parent session.
 
 Fix GitHub issue [#N] in [owner/repo] using local child sessions.
-Outcome and constraints: [observable result; non-goals, priorities or limits not in the issue].
+Delivery mode: [feature-pr | product-outcome].
+Outcome: [observable result].
+Repository and target branch: [owner/repo, verified target branch].
+Boundaries: [non-goals, priorities, and limits not in the issue].
+Completion evidence: [observable acceptance checks on the final PR or target].
 Own staffing, review routing and engineering decisions within those bounds.
 Use at most [4] concurrent children.
 Stack: [ask me once at startup | use the recommended stack | overrides: ...] (§2b);
 don't ask me to dispatch people or choose each tool.
 
-New PR: this session's branch is the PR head. Open it as a draft after the first integration.
-Existing PR [#M]: this session is on its branch.
-Project: break the work into reviewable PRs.
+Execution shape: [one parent PR (default) | project of component/deliverable PRs].
+Starting session: [new PR on this branch | existing PR #M | new project parent].
 
 Authority: [hold | deliver | ship]. Reviewers to request: [@user or org/team, or none].
 Overrides: [none, or e.g. "squash-merge", "no archive"].
