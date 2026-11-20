@@ -15,24 +15,27 @@ Start the parent in a project session on the repository:
 - For an existing PR, use that PR's session (`open_pr_session`).
 
 Fill in the bracketed values. Keep exactly one of the three scope lines and
-exactly one of the two merge options.
+exactly one of the two merge options. Leave the stack unspecified to get the
+one-time choice at startup; for unattended runs, say “use the recommended
+stack” or name the stages to override.
 
 ```text
 Use the multi-session-pr-next skill. You are the parent session.
 
 Fix GitHub issue [#N] in [owner/repo] using local child sessions.
-Calculate the active team from runnable work and pending reviews.
-Recruit and dismiss as needed, with at most [4] concurrent children.
-Dismiss through a safe handoff; preserve sessions and final-review obligations.
-Choose and set up the dev stack and workflow yourself (plugins and skills such
-as superpowers, pstack, agent-marketplace), as the work needs.
+Outcome and constraints: [observable result; non-goals, priorities or limits not in the issue].
+Own staffing, review routing and engineering decisions within those bounds.
+Use at most [4] concurrent children. Confirm the recommended dev stack or my
+overrides once at startup (§2b); don't ask me to dispatch people or choose each tool.
 
 New PR: this session's branch is the PR head. Open it as a draft after the first integration.
 Existing PR [#M]: this session is on its branch.
 Project: break the work into reviewable PRs.
 
 [You may merge a PR that meets Done. / Do not merge.]
-Keep going until the skill's Done criteria hold, then report back to me.
+Park finished sessions unless I explicitly opt into archival after Done.
+Escalate decisions that change my outcome, risk or authority with a recommendation.
+Keep going until Done, then show evidence for each acceptance criterion at the published head.
 ```
 
 ## 2. Child kickoff (filled in by the parent)
@@ -58,11 +61,12 @@ You own: [paths, or "none: review-only"]. Send the parent CHANGE before touching
 [rows]
 
 Decided: [interfaces, out-of-scope items, the human's decisions]
+Acceptance: [criteria this assignment covers and expected evidence]
 Your tests: [test projects or filters to run before each READY]
-Stack: [stage: skill; required or optional; integration or FINAL gate, or "base workflow"]
+Stack: [agreed stages, tools and runner model column applicable to this assignment; required or optional; integration or FINAL gate]
 Local resources: [distinct port / database / temp names, or "none"]
 
-Start with: [WORK task# pr=key sync=sha, or REVIEW review-id pr=key author=name base...sha kind=partner rerun=tests]
+Start with: [WORK task# pr=key sync=sha, or REVIEW review-id pr=key author=name base...sha kind=<partner or stage> rerun=tests]
 ```
 
 ## 3. Check-in prompt
