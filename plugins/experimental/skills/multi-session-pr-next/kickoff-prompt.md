@@ -14,25 +14,50 @@ Start the parent in a project session on the repository:
   branch becomes its own PR head.
 - For an existing PR, use that PR's session (`open_pr_session`).
 
-Fill in the bracketed values. Keep exactly one of the three scope lines and
-exactly one of the two merge options.
+Fill in the delivery contract and bracketed values. Delivery mode and execution
+shape are separate; one parent PR is the default execution shape. `Project` and
+`ship` do not select a delivery mode. Ask once
+at startup if the mode is missing; an unattended run with no mode defaults to
+`feature-pr`, and one with no authority defaults to `hold`. Derive the target
+and completion check from the human's brief or verified PR/repository metadata;
+if either remains missing or ambiguous, ask before target-dependent work. For
+the stack, say “ask me once at startup” or leave it unspecified; an unattended
+run uses the recommended stack (§2b).
+
+Authority (§2c) is one preset, which you can edit.
+
+| Preset | The parent may |
+|---|---|
+| `hold` | Publish the draft PR. The human marks it ready, requests reviewers and merges; sessions stay parked. |
+| `deliver` | `hold` plus mark ready, request and remind the reviewers you name, and archive eligible finished child sessions (§10). The human merges product-outcome deliverables or feature-pr components. |
+| `ship` | `deliver` plus merge eligible PRs allowed by the selected delivery mode, once their merge gates pass. |
+
+`product-outcome` requires `ship` for the parent to merge its PRs. In
+`feature-pr`, `ship` can merge internal component PRs to the feature branch but
+never the final feature PR. That PR is handed to the human for review.
 
 ```text
 Use the multi-session-pr-next skill. You are the parent session.
 
 Fix GitHub issue [#N] in [owner/repo] using local child sessions.
-Calculate the active team from runnable work and pending reviews.
-Recruit and dismiss as needed, with at most [4] concurrent children.
-Dismiss through a safe handoff; preserve sessions and final-review obligations.
-Choose and set up the dev stack and workflow yourself (plugins and skills such
-as superpowers, pstack, agent-marketplace), as the work needs.
+Delivery mode: [feature-pr | product-outcome].
+Outcome: [observable result].
+Repository and target branch: [owner/repo, verified target branch].
+Boundaries: [non-goals, priorities, and limits not in the issue].
+Completion evidence: [observable acceptance checks on the final PR or target].
+Own staffing, review routing and engineering decisions within those bounds.
+Use at most [4] concurrent children.
+Stack: [ask me once at startup | use the recommended stack | overrides: ...] (§2b);
+don't ask me to dispatch people or choose each tool.
 
-New PR: this session's branch is the PR head. Open it as a draft after the first integration.
-Existing PR [#M]: this session is on its branch.
-Project: break the work into reviewable PRs.
+Execution shape: [one parent PR (default) | project of component/deliverable PRs].
+Starting session: [new PR on this branch | existing PR #M | new project parent].
 
-[You may merge a PR that meets Done. / Do not merge.]
-Keep going until the skill's Done criteria hold, then report back to me.
+Authority: [hold | deliver | ship]. Reviewers to request: [@user or org/team, or none].
+Overrides: [none, or e.g. "squash-merge", "no archive"].
+Escalate decisions that change my outcome, risk or authority with a recommendation.
+Keep going until Done and act within that authority, then show evidence for each
+acceptance criterion at the published head.
 ```
 
 ## 2. Child kickoff (filled in by the parent)
@@ -58,11 +83,12 @@ You own: [paths, or "none: review-only"]. Send the parent CHANGE before touching
 [rows]
 
 Decided: [interfaces, out-of-scope items, the human's decisions]
+Acceptance: [criteria this assignment covers and expected evidence]
 Your tests: [test projects or filters to run before each READY]
-Stack: [stage: skill; required or optional; integration or FINAL gate, or "base workflow"]
+Stack: [agreed stages, tools and runner model column applicable to this assignment; required or optional; integration or FINAL gate]
 Local resources: [distinct port / database / temp names, or "none"]
 
-Start with: [WORK task# pr=key sync=sha, or REVIEW review-id pr=key author=name base...sha kind=partner rerun=tests]
+Start with: [WORK task# pr=key sync=sha, or REVIEW review-id pr=key author=name base...sha kind=<partner or stage> rerun=tests]
 ```
 
 ## 3. Check-in prompt
@@ -72,11 +98,11 @@ Schedule this in the parent with `save_session_automation`:
 - `every_minutes: 30`
 
 It is a safety net under the wake-ups from messages and idle notifications.
-Clear it at Done.
+Clear it once the scope is Done and nothing granted is left to wait for (§10).
 
 ```text
 multi-session-pr-next check-in for issue [#N] in [owner/repo]. Re-read
 ./agent-working/multi-session-[N]/ledger.md, run get_sessions_status for the
-roster, and run the skill's parent loop (§7). If nothing is actionable, end
-the turn.
+roster, and run the skill's parent loop (§7), or its §10 step 4 once the
+scope is Done. If nothing is actionable, end the turn.
 ```
