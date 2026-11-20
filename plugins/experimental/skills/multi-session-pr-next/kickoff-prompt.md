@@ -14,10 +14,18 @@ Start the parent in a project session on the repository:
   branch becomes its own PR head.
 - For an existing PR, use that PR's session (`open_pr_session`).
 
-Fill in the bracketed values. Keep exactly one of the three scope lines and
-exactly one of the two merge options. Leave the stack unspecified to get the
-one-time choice at startup; for unattended runs, say “use the recommended
-stack” or name the stages to override.
+Fill in the bracketed values. Keep exactly one of the three scope lines. Say
+“ask me once at startup” for the stack, or leave authority unspecified, to be
+asked at startup. An unattended run with none uses the recommended stack
+(§2b) and `hold`.
+
+Authority (§2c) is one preset, which you can edit.
+
+| Preset | The parent may |
+|---|---|
+| `hold` | Publish the draft PR. You mark it ready, request reviewers and merge; sessions stay parked. |
+| `deliver` | `hold` plus mark ready, request and remind the reviewers you name, and archive finished child sessions once everything has merged. You merge. |
+| `ship` | `deliver` plus merge, once each named reviewer approves the final head. |
 
 ```text
 Use the multi-session-pr-next skill. You are the parent session.
@@ -25,17 +33,19 @@ Use the multi-session-pr-next skill. You are the parent session.
 Fix GitHub issue [#N] in [owner/repo] using local child sessions.
 Outcome and constraints: [observable result; non-goals, priorities or limits not in the issue].
 Own staffing, review routing and engineering decisions within those bounds.
-Use at most [4] concurrent children. Confirm the recommended dev stack or my
-overrides once at startup (§2b); don't ask me to dispatch people or choose each tool.
+Use at most [4] concurrent children.
+Stack: [ask me once at startup | use the recommended stack | overrides: ...] (§2b);
+don't ask me to dispatch people or choose each tool.
 
 New PR: this session's branch is the PR head. Open it as a draft after the first integration.
 Existing PR [#M]: this session is on its branch.
 Project: break the work into reviewable PRs.
 
-[You may merge a PR that meets Done. / Do not merge.]
-Park finished sessions unless I explicitly opt into archival after Done.
+Authority: [hold | deliver | ship]. Reviewers to request: [@user or org/team, or none].
+Overrides: [none, or e.g. "squash-merge", "no archive"].
 Escalate decisions that change my outcome, risk or authority with a recommendation.
-Keep going until Done, then show evidence for each acceptance criterion at the published head.
+Keep going until Done and act within that authority, then show evidence for each
+acceptance criterion at the published head.
 ```
 
 ## 2. Child kickoff (filled in by the parent)
@@ -76,11 +86,11 @@ Schedule this in the parent with `save_session_automation`:
 - `every_minutes: 30`
 
 It is a safety net under the wake-ups from messages and idle notifications.
-Clear it at Done.
+Clear it once the scope is Done and nothing granted is left to wait for (§10).
 
 ```text
 multi-session-pr-next check-in for issue [#N] in [owner/repo]. Re-read
 ./agent-working/multi-session-[N]/ledger.md, run get_sessions_status for the
-roster, and run the skill's parent loop (§7). If nothing is actionable, end
-the turn.
+roster, and run the skill's parent loop (§7), or its §10 step 4 once the
+scope is Done. If nothing is actionable, end the turn.
 ```
