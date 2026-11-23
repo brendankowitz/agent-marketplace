@@ -32,8 +32,8 @@ Authority (§2c) is one preset, which you can edit.
 | `deliver` | `hold` plus mark ready, request and remind the reviewers you name, and archive eligible finished child sessions (§10). The human merges product-outcome deliverables or feature-pr components. |
 | `ship` | `deliver` plus merge eligible PRs allowed by the selected delivery mode, once their merge gates pass. |
 
-`product-outcome` requires `ship` for the parent to merge its PRs. In
-`feature-pr`, `ship` can merge internal component PRs to the feature branch but
+The parent merges only under the `merge` grant (in `ship`). In `product-outcome`
+it covers deliverable PRs; in `feature-pr`, it can merge internal component PRs to the feature branch but
 never the final feature PR. That PR is handed to the human for review.
 
 ```text
